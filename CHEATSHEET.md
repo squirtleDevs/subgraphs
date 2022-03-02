@@ -6,6 +6,18 @@ TODO: filter this doc for them and find answers to these questions.
 
 ---
 
+## Quick CLI Commands and Workflow
+
+Go to the UI and create a new subgraph. This assumes you have the graph CLI globally installed on your local machine. I am doing this bc I need to start a new repo but I'll need to redeploy the subgraph accordingly. This is a good exercise for me though so yeah. The merge folder will start with the blanket schema. So it deploys fine. Then I'll go ahead and add the new schema in a feature branch.
+
+1. `graph init --product hosted-service <GITHUB_USER>/<SUBGRAPH NAME> --abi <fileLocation>.json` The `--abi` part and onward is only if you have any issues with the abi from etherscan. This one exhibited some oddities so we had to clean up the ABI.json file a bit.
+
+2. `yarn codegen`
+
+3. `graph auth --product hosted-service <ACCESS_TOKEN>`
+
+Now you should have your subgraph syncing. Note you may need to have your startblock specified within your manifest.
+
 ## Subgraph Creation
 
 Four main ingredients for subgraph creation:
