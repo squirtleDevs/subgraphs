@@ -1,0 +1,39 @@
+specVersion: 0.0.2
+schema:
+  file: schema.graphql
+dataSources:
+  - kind: ethereum
+    name: Merge
+    network: mainnet
+    source:
+      address: "0xc3f8a0F5841aBFf777d3eefA5047e8D413a1C9AB"
+      abi: Merge
+      startBlock: 13801076
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      entities:
+        - AlphaMassUpdate
+        - Approval
+        - ApprovalForAll
+        - ConsecutiveTransfer
+        - MassUpdate
+        - Transfer
+      abis:
+        - name: Merge
+          file: Merge/abis/Merge.json
+      eventHandlers:
+        - event: AlphaMassUpdate(indexed uint256,uint256)
+          handler: handleAlphaMassUpdate
+        - event: Approval(indexed address,indexed address,indexed uint256)
+          handler: handleApproval
+        - event: ApprovalForAll(indexed address,indexed address,bool)
+          handler: handleApprovalForAll
+        - event: ConsecutiveTransfer(indexed uint256,uint256,indexed address,indexed address)
+          handler: handleConsecutiveTransfer
+        - event: MassUpdate(indexed uint256,indexed uint256,uint256)
+          handler: handleMassUpdate
+        - event: Transfer(indexed address,indexed address,indexed uint256)
+          handler: handleTransfer
+      file: Merge/Merge.wasm
