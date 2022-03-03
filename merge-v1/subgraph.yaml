@@ -24,7 +24,7 @@ dataSources:
         - name: Merge
           file: ./abis/Merge.json
       eventHandlers:
-        - event: sAlphaMassUpdate(indexed uint256,uint256)
+        - event: AlphaMassUpdate(indexed uint256,uint256)
           handler: handleAlphaMassUpdate
         - event: Approval(indexed address,indexed address,indexed uint256)
           handler: handleApproval

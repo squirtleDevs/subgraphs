@@ -39,5 +39,6 @@ type MassGroups @entity {
 }
 
 type InitialTotals @entity {
+  id: ID!
   totalMass: BigInt! #mass total of entire collection
 }

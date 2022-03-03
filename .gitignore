@@ -1,0 +1,7 @@
+# Generated files
+build/
+generated/
+node_modules/
+src/types/
+.DS_STORE
+yarn-error.log

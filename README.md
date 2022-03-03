@@ -65,6 +65,9 @@ From glancing through OpenSea and the merge contracts:
 - [ ] Published to Rinkeby, indexing and querying data from Eth Mainnet.
 - [ ] Create schema that collects the information from the 'right' perspective (see notes).
 - [ ] Create the mapping to properly store data in accordance to the schema.
+  - [ ] _This is a true test of your contract knowledge_ Open up the smart contracts, and work through the mapping file to obtain the information you desire. NOTE: is it typical to have your subgraph start with boilerplate mapping.ts based off of the exampleEntity within the schema, your ABI, etc.? YES. From there you have to import the new generated Classes and work with them. // est: 1hr
+  - [ ] Troubleshoot the subgraph with the mapping file you create. Do it one function at a time. A workflow will appear. // est: 1 hr
+  - [ ] Update subgraph and test with queries. Do this for one 'chunk' of the data entities, and then once you're good with that do it for the rest // est: 1 hr
 - [ ] Review with DK to see what parts could be improved. Do through PRs on github.
 
 ---
@@ -78,9 +81,32 @@ There are two perspectives for this Subgraph.
 
 ---
 
+### 📜 Working Notes on Creating the Mapping
+
+The approach I took when coming up with the details of the mapping for this subgraph was:
+
+1. Assess base-contracts (parent-contracts) inherited by Merge.sol, and the relevant emitted event and function calls.
+2. Assess Merge.sol contract itself.
+
+Key notes that I picked up through looking through these contracts
+
+1. Merge.sol:
+   - tokenId each have their associated `_values[address tokenId => uint256 mass]` values. These are used in generating the JSON string for the tokenURI. I think that a marketplace would just query the view function for `tokenURI()` for a respective tokenId, and get the typical trait data in a URI JSON. The subgraph or whatever database would do this at whatever instance of time to get all of the listings.
+   - `_transfer()` calls `_merge()` after some conditional checking BUT `merge()` calls `_merge()` also. This fact plus the `require()` that the receiver and sender are the same address when merging the receiver and sender tokens, respectively... makes me believe that `_transfer()` is called typically for most of the merging action that is going on mainnet. Whereas `merge()` as a external function call is happening in some separate situation (not sure what).
+   - TODO: understand the conditional logic that is before `_merge()` within `_transfer()`
+   - TODO: understand the whole alpha, blue, yellow, red, etc.
+   - TODO: knowing the remaining pieces, I can finish outlining the entities in my schema, and stub out the steps I will take when handling event, public view function, and other relevant data for this goal.
+
 ### ❓Questions So Far for DK
 
 1. When querying a Subgraph, what does id represent? In the example query it shows that you can do `exampleEntities(first: 5)` and so I was wondering what each instance represents. Are those the last 5 entity saves from the mapping within the subgraph?
 2. For the "Hodler" entity within the schema: I'd like your thoughts on the below:
 
    - Let's say that the smart contracts deletes the tokenId of the absorbed nft when merge() happens. If so, then mass Entity should update when merge() is called accordingly. I guess we'll just have missing/nullified IDs at some point in the subgraph? - So when a merge happens, a new mass is minted for one owner and the other owner loses their nft within the collection. So then their Hodler entity would become null. Within the mapping in the subgraph, this would happen by the merge event happening, the handler takes the param of the tokenId that was absorbed, or the address of the absorbed nft. It then nullifies the Hodler entity and updates the subgraph.
+
+_`mapping.ts` task related:_
+
+3. BigInt.fromI32, what is that? Looks like it comes from [here](https://github.com/graphprotocol/graph-ts/blob/master/common/numbers.ts). I think it just is handling numbers from blockchain data. Keeping it all the same format in the mapping and thus graph store.
+4. How does it query IPFS data?
+5. Where is the actual code 'binding' the abi of the smart contracts deployed on mainnet to subgraph here? // SP: I think it is the graph node itself, in our case the hosted service, that has the connection to the EVM. So using the specifications outlined when creating this subgraph, it then uses that to track the respective contract on the EVM through the node. From there it uses the ABI within this subgraph and then allows the mapping within this subgraph to do its thing with the incoming data from the blockchain and all other databases that the graph node is storing within the graph network!
+6. What is the `return` variable within the logic on line ~287 within `Merge.sol`; it is not within a returns function.
