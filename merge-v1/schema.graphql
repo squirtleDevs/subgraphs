@@ -1,11 +1,3 @@
-"Delete this when done of course"
-type ExampleEntity @entity {
-  id: ID!
-  count: BigInt!
-  tokenId: BigInt! # uint256
-  alphaMass: BigInt! # uint256
-}
-
 "Can be used for marketplace construction or even just a specific visualization front-end"
 type Hodler @entity {
   id: ID!
@@ -47,5 +39,6 @@ type MassGroups @entity {
 }
 
 type InitialTotals @entity {
+  id: ID!
   totalMass: BigInt! #mass total of entire collection
 }
