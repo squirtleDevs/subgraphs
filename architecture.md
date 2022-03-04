@@ -26,30 +26,30 @@ This is just a starting point. I have written out the architectural decisions fo
 
 ## ⚫️ Pak merge. Collection Subgraph Schema
 
-Let's think about this in databases, and how they may connect with one another. As well let's identify which stakeholders would use these databases.
+Let's think about this whole subgraph as a possgres db consisting of tables that connect with one another. As well let's identify which stakeholders would use these different tables.
 
-Databases marked with an asterisk\* have specific details in addition to the base schema for this pak collection.
+Tables marked with an asterisk\* have specific details in addition to the base schema for this pak collection.
 
-\*Database 1: Users
+\*Table 1: Users
 
 - Stakeholders: Data analysts & front ends would use this.
 - It provides all the details just like a marketplace would need aside from sales information.
 
-\*Database 2: NFTs themselves
+\*Table 2: NFTs themselves
 
 - Stakeholders: Data analysts & front ends.
 - It provides info for visual representations of the collection as a whole at any point in time.
 
-\*Database 3: Collection as a whole (global)
+\*Table 3: Collection as a whole (global)
 
 - Stakeholders: Data analysts & front ends.
 
-Database 4: Sales
+Table 4: Sales
 
 - Stakeholders: Data analysts & front ends & marketplaces.
 - Provides pertinent information for transfers of any particular NFT within a collection.
 
-Database 5: ERC-20s used for purchasing
+Table 5: ERC-20s used for purchasing
 
 - Stakeholders: Data analysts & front ends & marketplaces.
 - Provides details on the digital assets used to pay for NFTs during sales.

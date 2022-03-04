@@ -27,16 +27,10 @@ type User @entity {
   id: ID!
   "Unique tokenID for a respective NFT"
   tokenID: BigInt!
-  "Size of mass for a specific NFT"
-  massSize: BigInt! #pak
-  "Color of mass NFT; BLACK is Alpha"
-  color: Color! #pak: class in smart contract specifies color where decodeClass(_values[tokenId]) is used in generating metadata (on-chain svg).
-  "Rarity for mass NFTs; higher numbers are highest rarity"
-  class: Class! #pak: in smart contracts, class is a uint
-  "Amount of times this tokenID has absorbed other NFTs"
-  mergeCount: BigInt! #pak
+  "Details about NFTs being held by this User"
+  massNFTs: [NFTs!]! @derivedFrom(field: owner) #pak: allows one to query info about NFTs belonging to this user
   "Whether this User can carry more than one mass NFT"
-  whitelist: Bool! #These are central marketplaces typically like Nifty Gateway
+  whitelist: Bool! #pak: These are central marketplaces typically like Nifty Gateway
 }
 
 """
@@ -87,10 +81,10 @@ type Sales {
 The NFT collection, merge., and inherent global details on it.
 """
 type Collection @entity {
-  "Set to 1"
+  "NFT external contract address"
   id: ID!
   "Name of NFT collection"
-  collectionName: String!
+  Name: String!
   "Original amount of mass minted"
   originalMasses: Int!
   "Current amount of mass existing"
@@ -99,8 +93,6 @@ type Collection @entity {
   totalMass: Int!
   "ERC token standard used in this collection"
   tokenStandard: String!
-  "NFT external contract address"
-  contract: Bytes!
 }
 
 """
