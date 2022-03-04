@@ -1,44 +1,118 @@
-"Can be used for marketplace construction or even just a specific visualization front-end"
-type Hodler @entity {
+"""
+Color of NFT from least rare to rarest
+"""
+enum Color {
+  WHITE #tier/class - 1
+  YELLOW #tier/class - 2
+  BLUE #tier/class - 3
+  RED #tier/class - 4
+  BLACK #tier/class - 4
+}
+
+"""
+Class of NFT from least rare to rarest that corresponds to Color
+"""
+enum Class {
+  ONE
+  TWO
+  THREE
+  FOUR
+}
+
+"""
+An account of users holding an NFT within merge. collection.
+"""
+type User @entity {
+  "The holder's address of NFT in collection"
   id: ID!
-  collectionName: String!
+  "Unique tokenID for a respective NFT"
+  tokenID: BigInt!
+  "Size of mass for a specific NFT"
+  massSize: BigInt! #pak
+  "Color of mass NFT; BLACK is Alpha"
+  color: Color! #pak: class in smart contract specifies color where decodeClass(_values[tokenId]) is used in generating metadata (on-chain svg).
+  "Rarity for mass NFTs; higher numbers are highest rarity"
+  class: Class! #pak: in smart contracts, class is a uint
+  "Amount of times other NFTs within merge collection have been absorbed by this tokenID"
+  mergeCount: BigInt! #pak
+  "Accounts whitelisted to carry more than one mass NFT"
+  whitelist: Bool! #These are central marketplaces typically like Nifty Gateway
+}
+
+"""
+Individual NFTs within this collection.
+"""
+type NFTs @entity {
+  "Unique tokenID"
+  id: ID!
+  "Last sale ID showing number of times this token has been sold"
+  sale: [Sales!]! @derivedFrom(filed: tokenID)
+  "Whether the NFT has been merged, and therefore deleted"
+  merged: Boolean! #pak
+  "Current owner unless merged where it would be address(0)"
   owner: Bytes!
-  tokenID: BigInt! # uint256
-  massSize: BigInt!
-  rarityPreMerge: BigDecimal! #TODO: percentage of mass NFTs that are this specific mass size in the whole collection. This one is trickier bc we need the instance of total mass at that specific size right before Merging capability was activated. I think this is better in a separate entity. The front end devs can just take MassGroups entities and calculate the rarity.
-  rarityNow: BigDecimal! #TODO: see above comment. Same applies.
-  isBlue: Boolean!
-  isYellow: Boolean!
-  isNormal: Boolean! #TODO: Front end should be able to work with isBlue and isYellow to determine that it isNormal, but I'll put it in and see what DK says.
-  purchasePrice: BigDecimal # original purchase ether price of NFT
-  purchaseDate: BigDecimal #blockNumber converted to human time?
-  tier: BigInt!
-  class: BigInt!
-  mergeCount: BigInt!
+  "Size of mass for a specific NFT"
+  massSize: BigInt! #pak
+  "Color of mass NFT; BLACK is Alpha"
+  color: Color! #pak: class in smart contract specifies color where decodeClass(_values[tokenId]) is used in generating metadata (on-chain svg).
+  "Rarity for mass NFTs; higher numbers are highest rarity"
+  class: Class! #pak: in smart contracts, class is a uint
+  "Amount of times other NFTs within merge collection have been absorbed by this tokenID"
+  mergeCount: BigInt! #pak
+}
+
+"""
+The NFT collection, merge., and inherent global details on it.
+"""
+type Collection @entity {
+  "Set to 1"
+  id: ID!
+  "Name of NFT collection"
+  collectionName: String!
+  "Original amount of mass minted"
+  originalMasses: Int!
+  "Current amount of mass existing"
+  currentMasses: Int!
+  "Total mass in the collection"
+  totalMass: Int!
+  "ERC token standard used in this collection"
   tokenStandard: String!
+  "NFT external contract address"
+  contract: Bytes!
 }
 
-"These are the original merge nfts upon nft project initialization"
-type OriginalMasses @entity {
+"""
+History of sales for NFTs in collection.
+"""
+type Sales {
+  "Concatenation of tokenID-saleNumber"
   id: ID!
-  count: BigInt! #number of original separate mass nfts before "merging" was allowed and thus unique owners. From the get-go a user could not hold more than one "merge" nft cause it would just get merged into other merge nfts in that respective wallet
+  "First sale is 0 - second is 1 - etc"
+  saleNumber: Int!
+  "Token ID of the mass"
+  tokenID: String!
+  "ERC-20 Token used to purchase NFT"
+  token: Token!
+  "Price it was sold for"
+  price: BigInt!
+  "Block timestamp" # Can be converted in front end to human readable"
+  timestamp: Int!
+  "Seller"
+  from: Bytes!
+  "Buyer"
+  to: Bytes!
 }
 
-"These are the current masses after the absorption of smaller masses in trades to date"
-type CurrentMasses @entity {
+"""
+An asset used to purchase NFT from collection. These assets should follow ERC-20 standard.
+"""
+type Token @entity {
+  "Token address"
   id: ID!
-  count: BigInt! #number of new separate mass nfts after "merging" allowed and thus unique owners
-}
-
-"Details for groups of specific mass sizes that can be used to calculate relative rarity within collection"
-type MassGroups @entity {
-  id: ID!
-  massSize: BigInt! #size of mass in this specific subgroup
-  subgroupSize: BigInt! #number of nfts with the same mass size now
-  ogGroupSize: BigInt! #original number of nfts with the same mass size as your mass NFT in your wallet
-}
-
-type InitialTotals @entity {
-  id: ID!
-  totalMass: BigInt! #mass total of entire collection
+  "Number of decimals use for Token"
+  decimals: BigInt! #typically 10^18
+  "Token SYMBOL"
+  symbol: String!
+  "Token name"
+  name: String!
 }
