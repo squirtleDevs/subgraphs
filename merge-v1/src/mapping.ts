@@ -8,14 +8,7 @@ import {
   MassUpdate,
   Transfer,
 } from "../generated/Merge/Merge";
-import {
-  ExampleEntity,
-  Hodler,
-  OriginalMasses,
-  CurrentMasses,
-  MassGroups,
-  InitialTotals,
-} from "../generated/schema";
+import { User, NFTs, ExampleEntity, Color, Class } from "../generated/schema";
 
 export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
   // Entities can be loaded from the store using a string ID; this ID
