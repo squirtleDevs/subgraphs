@@ -39,6 +39,8 @@ Individual NFTs within this collection.
 type NFTs @entity {
   "Unique tokenID"
   id: ID!
+  "Last sale ID showing number of times this token has been sold"
+  sale: [Sales!]! @derivedFrom(field: "tokenID")
   "Whether the NFT has been merged, and therefore deleted"
   merged: Boolean! #pak
   "Current owner unless merged where it would be address(0)"
@@ -51,4 +53,58 @@ type NFTs @entity {
   class: Class! #pak: in smart contracts, class is a uint
   "Amount of times this tokenID has absorbed other NFTs"
   mergeCount: BigInt! #pak
+}
+
+"""
+History of sales for NFTs in collection.
+"""
+type Sales {
+  "Concatenation of tokenID-saleNumber"
+  id: ID!
+  "First sale is 0 - second is 1 - etc"
+  saleNumber: Int!
+  "Token ID of the mass"
+  tokenID: NFTs!
+  "ERC-20 Token used to purchase NFT"
+  saleToken: Token!
+  "Price it was sold for in saleToken"
+  salePrice: BigInt!
+  "Sale block timestamp" # Can be converted in front end to human readable"
+  timestamp: Int!
+  "Seller"
+  from: Bytes!
+  "Buyer"
+  to: Bytes!
+}
+
+"""
+The NFT collection, merge., and inherent global details on it.
+"""
+type Collection @entity {
+  "NFT external contract address"
+  id: ID!
+  "Name of NFT collection"
+  Name: String!
+  "Original amount of mass minted"
+  originalMasses: Int!
+  "Current amount of mass existing"
+  currentMasses: Int!
+  "Total mass in the collection"
+  totalMass: Int!
+  "ERC token standard used in this collection"
+  tokenStandard: String!
+}
+
+"""
+An asset used to purchase NFT from collection. These assets should follow ERC-20 standard.
+"""
+type Token @entity {
+  "Token address"
+  id: ID!
+  "Number of decimals use for Token"
+  decimals: BigInt! #typically 10^18
+  "Token SYMBOL"
+  symbol: String!
+  "Token name"
+  name: String!
 }

@@ -99,6 +99,8 @@ Key notes that I picked up through looking through these contracts
 
 ### ❓Questions So Far for DK
 
+_*Questions not marked with an asterisk * have been answered. I will write in answers at a later date._
+
 1. When querying a Subgraph, what does id represent? In the example query it shows that you can do `exampleEntities(first: 5)` and so I was wondering what each instance represents. Are those the last 5 entity saves from the mapping within the subgraph?
 2. For the "Hodler" entity within the schema: I'd like your thoughts on the below:
 
@@ -106,7 +108,10 @@ Key notes that I picked up through looking through these contracts
 
 _`mapping.ts` task related:_
 
-3. BigInt.fromI32, what is that? Looks like it comes from [here](https://github.com/graphprotocol/graph-ts/blob/master/common/numbers.ts). I think it just is handling numbers from blockchain data. Keeping it all the same format in the mapping and thus graph store.
+3. \*BigInt.fromI32, what is that? Looks like it comes from [here](https://github.com/graphprotocol/graph-ts/blob/master/common/numbers.ts). I think it just is handling numbers from blockchain data. Keeping it all the same format in the mapping and thus graph store.
 4. How does it query IPFS data?
 5. Where is the actual code 'binding' the abi of the smart contracts deployed on mainnet to subgraph here? // SP: I think it is the graph node itself, in our case the hosted service, that has the connection to the EVM. So using the specifications outlined when creating this subgraph, it then uses that to track the respective contract on the EVM through the node. From there it uses the ABI within this subgraph and then allows the mapping within this subgraph to do its thing with the incoming data from the blockchain and all other databases that the graph node is storing within the graph network!
-6. What is the `return` variable within the logic on line ~287 within `Merge.sol`; it is not within a returns function.
+6. \*What is the `return` variable within the logic on line ~287 within `Merge.sol`; it is not within a returns function.
+7. Need to understand IDs more within subgraphs. When thinking about it for Sales, I see that `to` and `from` fields are `Bytes` whereas in the lending-standard-subgraph base schema, `id: ID` is used for `type Account`
+8. Perhaps I just need to look at more subgraphs with fresh eyes, but when you use derivation, like in `sale: [Sales!]! @derivedFrom(filed: tokenID)`, if you wanted to obtain a specific field within the `Sales` database, how would you go about it? To me, right now we would just get the `id` field from `Sales` entity.
+9. \*Redundancy: when making a schema, is it OK to have the same details as fields within two different entities? Ex.) The `User` vs `NFTs` entities; where there exists the same fields outlining pertinent details for each NFT. Would it be better to only instantiate a datafield once within one entity?
