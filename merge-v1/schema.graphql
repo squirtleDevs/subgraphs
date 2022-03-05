@@ -28,7 +28,7 @@ type User @entity {
   "Unique tokenID for a respective NFT"
   tokenID: BigInt!
   "Details about NFTs being held by this User"
-  massNFTs: [NFTs!]! @derivedFrom(field: owner) #pak: allows one to query info about NFTs belonging to this user
+  massNFTs: [NFTs!]! @derivedFrom(field: "owner") #pak: allows one to query info about NFTs belonging to this user
   "Whether this User can carry more than one mass NFT"
   whitelist: Boolean! #pak: These are central marketplaces typically like Nifty Gateway
 }
@@ -42,7 +42,7 @@ type NFTs @entity {
   "Whether the NFT has been merged, and therefore deleted"
   merged: Boolean! #pak
   "Current owner unless merged where it would be address(0)"
-  owner: String!
+  owner: User!
   "Size of mass for a specific NFT"
   massSize: BigInt! #pak
   "Color of mass NFT; BLACK is Alpha"
