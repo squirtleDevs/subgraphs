@@ -261,6 +261,12 @@ contract Merge is ERC721, ERC721Metadata {
         emit Transfer(owner, address(0), tokenIdDead);
     }
 
+    /**
+     * @notice called AFTER actual nft transfer already occurred (see safeTransferFrom()). Deletes old _owner and _tokens mapping values so non-whitelisted owners cannot have more than one merge. NFT. 
+     * NOTE: _values mapping is taken care of within _merge() where the deadToken is sorted out from the token pair. See _merge() for more details.
+     * NOTE: whitelisted addresses will typically include centralized marketplaces (Nifty Gateway for example) that have their own backend keeping track of who owns which tokenId.
+     * NOTE: Changes _owner value for aliveTokenId to 'to' IF 'to's original tokenId, currentId, was surplanted
+     */
     function _transfer(address owner, address from, address to, uint256 tokenId) internal notFrozen {
         require(owner == from, "ERC721: transfer of token that is not own");
         require(to != address(0), "ERC721: transfer to the zero address");
@@ -408,6 +414,12 @@ contract Merge is ERC721, ERC721Metadata {
         }
     }
 
+    /**
+     * @notice called as a result of either merge() from whitelisted addresses OR through call-sequence from safeTransferFrom() for non-whitelisted addresses
+     * NOTE: increases the _values() mapping value for larger tokenId out of pair.
+     * NOTE: checks that new combinedMass is greater or not than _alphaMass
+     * NOTE: increases mergeCount for respective tokenId, decrements _countToken by 1, emits MassUpdate()
+     */
     function _merge(uint256 tokenIdRcvr, uint256 tokenIdSndr) internal returns (uint256 tokenIdDead) {
         require(tokenIdRcvr != tokenIdSndr, "Merge: Illegal argument identical tokenId.");
 
@@ -605,6 +617,10 @@ contract Merge is ERC721, ERC721Metadata {
         frozen = false;
     }
 
+    /**
+     * @notice public transfer function sending merge NFT from 'from' to 'to'
+     * NOTE: triggers _merge() ultimately if 'to' is non-whitelisted Address and already has a merge. NFT.
+     */
     function safeTransferFrom(address from, address to, uint256 tokenId) public virtual override {
         safeTransferFrom(from, to, tokenId, "");
     }

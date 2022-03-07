@@ -27,6 +27,7 @@ This is a quick reference file for specific details with mapping creation and wo
    - Use `yarn build` to check your mapping code for syntax errors that the TypeScript compiler may find.
 
 7. Call Handlers: Many contracts avoid generating logs to optimize gas costs. TODO: look up logs that contracts can create. Read up on them.
+
    - Subgraphs can subscribe to calls to data source contracts.
    - Define call handlers referencing function signatures, and then the mapping handler will process calls to this function.
    - Mapping handler receives an `ethereum.Call` as an argument with the `typed` inputs and outputs from the call.
@@ -39,8 +40,24 @@ This is a quick reference file for specific details with mapping creation and wo
      ```
      - The `handler` is the name of the function in your mapping you would like to execute when the target function is called in the data source contract.
 
+8. AssemblyScript APIs
+   - The Graph outlines built-in APIs that can be used when writing subgraph mappings. Two of which include:
+     - the Graph TypeScript library (graph-ts) and
+     - code generated from subgraph files by `graph codgen`
+   - Other libraries can be added as dependences as long as they are compatible with AssemblyScript.
+
+- APIs, as mentioned in the form of the graph-ts and generated files from `graph codegen`, actually convert Ethereum types to built-in types behind the scenes. They do this with the generated clases for all smart contracts and events used in the subgraph (defined in the abis/).
+- Therefore, values obtained when querying subgraphs are in the form of the built-in types. Let's say we want a BigInt! that corresponds with a uint256 value from an event parameter. Well, we'd have to work with it as a BigInt then, since that is the class (type?) that is associated to that field. Converting to specific types (uint8, BigInt, BigDecimal) is an important aspect to get right when working with mappings. One has to think about how the user will be querying as well and what format would be most helpful for the user. From there, one also has to be aware of how the event and smart contract data is being converted (what built-in types are thye being converted to from the ethereum raw data).
+
+9. Most work done within mapping will be done via use of eventHandlers. DK outlined that he only used callHandlers once or twice in his time making subgraphs.
+
 ## Big Questions
 
 1. How to handle Ethereum data. HexStrings, etc. Do I run into issues such as BigNumbers and whatnot similar to EthersJS? // Answer: check out the APIs for AssemblyScript laid out by the [graph](https://thegraph.com/docs/en/developer/assemblyscript-api/)
 
 2. Importing entities from schema, when doing this, the mapping files actually treat it as a new class within the code of the subgraph. So entities are different classes.
+
+3. The Graph docs outline how a callHandler is only triggered when:
+   - Function is called by an account that isn't the contract itself, or
+   - `external` function is called by the contract itself.
+   - ANSWER as per convo with DK: This likely is a type where `external` is meant to say `public` because smart contracts, unless using `this.f()` pattern, cannot call external contracts within itself. The likely intent of the sentences here is that callHandlers are also triggered by functions within the contract itself that wrap around a `public` function of interest.
