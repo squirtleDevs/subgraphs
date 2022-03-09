@@ -8,27 +8,15 @@ import {
   MassUpdate,
   Transfer,
 } from "../generated/Merge/Merge";
-import { User, NFTs, ExampleEntity, Color, Class } from "../generated/schema";
+import { User, NFT, ExampleEntity, Color, Class } from "../generated/schema";
 import { EMPTY_ADDRESS } from "./utils";
 
-/**
- * NOTE: Either sorts through the possible times event Transfer() is emitted, or handles one scenario at a time.
- * Referencing ens subgraph architecture, I will have a function that creates newUser and newNFT entities. These functions will be called upon depending on different scenarios.
- * So I will have _handleTransferMint() that populates new Users, and new NFTs as they are minted (this should all be around the beginning block for the project).
- * There shouldn't be any more mints after that but you never know (well I could check the smart contracts, but yeah). So I could either have this setup, or have a handleMintTransfer() function that has logic in it checking if 'from' is address(0).
- * User fields should be good to populate: id, tokenId, massNFTs (where I check if the entity id for the corresponding NFT entity is null. If it is, create a new NFT entity type and fill out the fields accordingly.)
- * That should handle when mint() is called!
- *
- * NOTE: In general, individual scenarios will be outlined one by one in separate functions.
- *
- */
-
-// Helper functions: these are smaller functions that I'll use for logic.
+/* ========== HELPER FUNCTIONS ========== */
 
 /**
- * TODO: Do called functions inherit the scope of the caller function (and thus the event details in this case and all that). Going to assume no, searching quickly kind of got confusing.
+ * @notice sort color of nft based on massClass
  * @param massClass corresponding to the enum Class from schema
- * @returns
+ * @returns Color
  */
 function checkColor(massClass: String): Color {
   if (massClass == "ONE") return "WHITE";
@@ -37,119 +25,124 @@ function checkColor(massClass: String): Color {
   if (massClass == "FOUR") return "RED";
 }
 
+/* ========== EVENT HANDLERS ========== */
+
 /**
- * @notice instantiates User and NFTs entities when minting carried out with Nifty Gateway
+ * @notice handles Transfer events and ultimately instantiates / updates User and NFT entities
+ * @param event: Transfer
+ * NOTE: Checks through different scenarios (current WIP covers): 1. minting
+ * TODO: 2. transfer from NG to ext. addresses, 3. transfers btw ext. addresses to other ext. addresses (not whitelisted), 4. merge() being called, 5. possibly merge being called by NG specifically.
  */
 export function handleTransfer(event: Transfer): void {
   let to = event.params.to.toHex();
-  let user = User.load(to);
   let from = event.params.from.toHex();
   let tokenId = event.params.tokenId;
+  let nft: NFT;
+
+  let user = User.load(to);
 
   let contract = Merge.bind(event.address);
-  let newNFT: NFTs;
 
   // check that user entity hasn't been create already
   if (!user) {
     user = new User(to);
     user.whitelist = false;
-    // TODO: not sure if I should load NFTs here for this or not...
+    nft = getNFT(event, user);
   } else if (
     // check that it is a mint tx, if so update user (nifty gateway omnibus)
     from == EMPTY_ADDRESS
   ) {
-    // user.massNFTs = []
-
-    //NiftyGateway NFT likely cause that is where I think the only minting happened
-    newNFT = createNFT(event.params.tokenId.toString(), user);
+    // user.massNFT = [] TODO: not sure if this is needed
+    nft = createNFT(event, user);
   }
-
-  // ** NFT DETAILS ** //
-  // TODO: Not sure if I should pass NFT details through above if/else above to createNFT(), or if I can populate the newly created NFT within the handleTransfer function here aftewards. I could change the required fields accordingly to what would be best.
-  newNFT.massSize = contract.massOf(tokenId);
-  let value = contract.getValueOf(tokenId);
-  newNFT.class = contract.decodeClass(value).toString(); // TODO: not sure if I should leave it as string, or leave as BigInt. Figure it out as you make queries. Converted to string to use enums in schema for Class.
-  let alpha = contract._alphaId();
-
-  if (newNFT.class == "FOUR" && tokenId == alpha) {
-    newNFT.color = "BLACK";
-  } else {
-    newNFT.color = checkColor(newNFT.Class);
-  }
-
-  newNFT.mergeCount = contract.getMergeCount(tokenId);
 }
 
-/**
- * @notice create new NFT entity types upon mint
- * @param tokenId
- */
-function createNFT(tokenId: string, owner: string): NFTs {
-  let nft = new NFTs(tokenId);
+/* ========== GENERAL FUNCTIONS ========== */
 
-  //See TODO: regarding ** NFT DETAILS ** in handleTransfer() function
-  nft.merged = false; //TODO: need to check this out because ppl bought more than one nft during mint in Nifty Gateway. This could have led to merging.
-  nft.owner = owner;
-  nft.massSize = todoMASS; //how do I get this if no event provides info.
-  nft.color = todoCOLOR; // same question as massSize
-  nft.class = todoCLASS; // same question as massSize
-  nft.mergeCount = todoMERGECOUNT; // same question as massSize
+/**
+ * @notice load NFT or call createNFT() for new NFT
+ * @param event: Transfer from handleTransfer() caller
+ * @returns
+ */
+function getNFT(event: Transfer, user: User): NFT {
+  let to = event.params.to.toHex();
+  let from = event.params.from.toHex();
+  let tokenId = event.params.tokenId;
+
+  let nft = NFT.load(tokenId);
+
+  let contract = Merge.bind(event.address);
+
+  // check that nft entity hasn't been create already
+  if (!nft) {
+    return (nft = createNFT(event, user));
+  }
+
+  nft.owner = user;
+  // TODO: update nft fields for pre-existing nft! This would get complicated though cause it may update with massSize. For now, it's not in the scope of this PR cause I am just handling minting.
+
+  //user.massNFT = [] //TODO: not sure if I will need this line, will find out when testing querying.
+
+  //NiftyGateway NFT likely cause that is where I think the only minting happened
 
   return nft;
 }
 
 /**
- *
- * @param event
+ * @notice create new NFT entity types upon mint
+ * @param event: Transfer from handleTransfer() caller function
  */
-export function handleApproval(event: Approval): void {}
+function createNFT(event: Transfer, user: User): NFT {
+  let to = event.params.to.toHex();
+  let from = event.params.from.toHex();
+  let tokenId = event.params.tokenId;
 
-export function handleApprovalForAll(event: ApprovalForAll): void {}
+  let nft = new NFT(tokenId);
 
-export function handleConsecutiveTransfer(event: ConsecutiveTransfer): void {}
+  let contract = Merge.bind(event.address);
 
-export function handleMassUpdate(event: MassUpdate): void {}
-/**
- * @notice this is just an example function.
- */
-export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex());
+  nft.merged = false; //TODO: need to check this out because ppl bought more than one nft during mint in Nifty Gateway. This could have led to merging.
+  nft.owner = user;
+  nft.massSize = contract.massOf(tokenId);
+  let value = contract.getValueOf(tokenId);
+  nft.class = contract.decodeClass(value).toString();
+  let alpha = contract._alphaId();
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from.toHex());
-
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0);
+  if (nft.class == "FOUR" && tokenId == alpha) {
+    nft.color = "BLACK";
+  } else {
+    nft.color = checkColor(nft.Class);
   }
 
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1);
+  nft.mergeCount = contract.getMergeCount(tokenId);
 
-  // Entity fields can be set based on event parameters
-  entity.tokenId = event.params.tokenId;
-  entity.alphaMass = event.params.alphaMass;
+  nft.save();
 
-  // Entities can be written to the store with `.save()`
-  entity.save();
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // None
+  return nft;
 }
+
+/* ========== TBD FUNCTIONS ========== */
+
+// /**
+//  * @notice
+//  * @param event
+//  */
+// export function handleApproval(event: Approval): void {}
+
+// /**
+//  * @notice
+//  * @param event
+//  */
+// export function handleApprovalForAll(event: ApprovalForAll): void {}
+
+// /**
+//  * @notice
+//  * @param event
+//  */
+// export function handleConsecutiveTransfer(event: ConsecutiveTransfer): void {}
+
+// /**
+//  * @notice
+//  * @param event
+//  */
+// export function handleMassUpdate(event: MassUpdate): void {}

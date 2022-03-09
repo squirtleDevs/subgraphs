@@ -72,10 +72,23 @@ From glancing through OpenSea and the merge contracts:
 
 - [ ] Finish basic entity subgraphs in mapping:
 
-  - [x] Add in whitelist for user entity
-  - [ ] Review the code and highlight questions to go over with Dave
-  - [ ] Try compiling it
-  - [/] Add in note about how if someone purchased another mass during the minting phase... then a merge may have happened but that's backend stuff too with Nifty Gateway... confusing.
+### Handling User and NFT entities for mint() scenario
+
+- [x] Add in whitelist for user entity
+- [x] `User.whitelist` field will be handled with a call handler (when pak calls it). Have it be set as default `false`. Although NOTE that it should actually be `true` for the NG omnibus and other NG addresses. This would be captured with a callHandler() on `whitelistUpdate()`
+- [x] Change `NFTs` entity to NFT
+- [x] Move `NFT` updates to `createNFT()` instead of `handleTransfer()`. Do this by passing `event` type through to the callee function `createNFT()`
+- [x] Make sure to save newly created entities or updated ones.
+- [x] Clean up architecture to consider `getNFT()` vs `createNFT()`
+- [/] Clean up the comments within the mapping file
+- [/] Comment out the code and run iterative subgraph deployments, test query them too.
+- [ ] Submit PR with finished subgraph draft for minting function for `merge.sol`
+
+########
+
+- [ ] Review the code and highlight questions to go over with Dave
+- [ ] Try compiling it
+- [/] Add in note about how if someone purchased another mass during the minting phase... then a merge may have happened but that's backend stuff too with Nifty Gateway... confusing.
 
 - [ ] You can only use event handlers once. So... when an NFT is transferred, we need to take all scenarios into account.
 
@@ -124,3 +137,6 @@ _`mapping.ts` task related:_
 7. Need to understand IDs more within subgraphs. When thinking about it for Sales, I see that `to` and `from` fields are `Bytes` whereas in the lending-standard-subgraph base schema, `id: ID` is used for `type Account`
 8. Perhaps I just need to look at more subgraphs with fresh eyes, but when you use derivation, like in `sale: [Sales!]! @derivedFrom(filed: tokenID)`, if you wanted to obtain a specific field within the `Sales` database, how would you go about it? To me, right now we would just get the `id` field from `Sales` entity.
 9. \*Redundancy: when making a schema, is it OK to have the same details as fields within two different entities? Ex.) The `User` vs `NFTs` entities; where there exists the same fields outlining pertinent details for each NFT. Would it be better to only instantiate a datafield once within one entity?
+10. Regarding the function architecture I have within the mapping file for `merge.sol` revolving around `handleTransfer()` and `loadNFT()`
+    Call loadNFT(), which has createNFT() within it in a similar if/else setup as this.
+    If this is a new User entity, then it should not have any nfts within it. Therefore we just need to call loadNFT() which handles just loading up and returning an NFT appropriately. Hmm. but I think we should actually have the conditional logic checking if there is an NFT entity like that in existence. The reason is that we do not know if this is a new whitelisted address or something that could be receiving a transfer() of a pre-existing NFT. The counter to this thought is that the function becomes more complicated.

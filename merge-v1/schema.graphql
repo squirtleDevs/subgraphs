@@ -25,10 +25,8 @@ An account of users holding an NFT within merge. collection.
 type User @entity {
   "The holder's address of NFT in collection"
   id: ID!
-  "Unique tokenID for a respective NFT"
-  tokenID: BigInt!
   "Details about NFTs being held by this User"
-  massNFTs: [NFTs!]! @derivedFrom(field: "owner") #pak: allows one to query info about NFTs belonging to this user
+  massNFTs: [NFT!]! @derivedFrom(field: "owner") #pak: allows one to query info about NFTs belonging to this user
   "Whether this User can carry more than one mass NFT"
   whitelist: Boolean! #pak: These are central marketplaces typically like Nifty Gateway
 }
@@ -36,7 +34,7 @@ type User @entity {
 """
 Individual NFTs within this collection.
 """
-type NFTs @entity {
+type NFT @entity {
   "Unique tokenID"
   id: ID!
   "Whether the NFT has been merged, and therefore deleted"
