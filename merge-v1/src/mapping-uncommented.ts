@@ -8,7 +8,7 @@ import {
   MassUpdate,
   Transfer,
 } from "../generated/Merge/Merge";
-import { User, NFT } from "../generated/schema";
+import { User, NFT, ExampleEntity, Color, Class } from "../generated/schema";
 import { EMPTY_ADDRESS } from "./utils";
 
 /* ========== HELPER FUNCTIONS ========== */
@@ -19,13 +19,13 @@ import { EMPTY_ADDRESS } from "./utils";
  * @returns Color
  * TODO: running into type error and not sure how to make the return value a type, not a value here. Originally I was hoping to import enums from the schema, but that doesn't work. I think that makes sense though.
  */
-// function checkColor(massClass: String): Color {
-//   let color: String;
-//   if (massClass == "ONE") return (color = "WHITE");
-//   if (massClass == "TWO") return (color = "YELLOW");
-//   if (massClass == "THREE") return (color = "BLUE");
-//   if (massClass == "FOUR") return (color = "RED");
-// }
+function checkColor(massClass: String): String {
+  let color: String;
+  if (massClass == "ONE") return (color = "WHITE");
+  if (massClass == "TWO") return (color = "YELLOW");
+  if (massClass == "THREE") return (color = "BLUE");
+  if (massClass == "FOUR") return (color = "RED");
+}
 
 /* ========== EVENT HANDLERS ========== */
 
@@ -38,14 +38,17 @@ import { EMPTY_ADDRESS } from "./utils";
 export function handleTransfer(event: Transfer): void {
   let to = event.params.to.toHex();
   let from = event.params.from.toHex();
+  let tokenId = event.params.tokenId;
   let nft: NFT;
 
   let user = User.load(to);
 
+  let contract = Merge.bind(event.address);
+
   // check that user entity hasn't been create already
   if (!user) {
     user = new User(to);
-    // user.whitelist = false;
+    user.whitelist = false;
     nft = getNFT(event, user);
   } else if (
     // check that it is a mint tx, if so update user (nifty gateway omnibus)
@@ -54,8 +57,6 @@ export function handleTransfer(event: Transfer): void {
     // user.massNFT = [] TODO: not sure if this is needed
     nft = createNFT(event, user);
   }
-
-  user.save();
 }
 
 /* ========== GENERAL FUNCTIONS ========== */
@@ -66,11 +67,13 @@ export function handleTransfer(event: Transfer): void {
  * @returns
  */
 function getNFT(event: Transfer, user: User): NFT {
+  let to = event.params.to.toHex();
+  let from = event.params.from.toHex();
   let tokenId = event.params.tokenId.toString();
 
   let nft = NFT.load(tokenId);
 
-  // let contract = Merge.bind(event.address);
+  let contract = Merge.bind(event.address);
 
   // check that nft entity hasn't been create already
   if (!nft) {
@@ -101,20 +104,20 @@ function createNFT(event: Transfer, user: User): NFT {
 
   let contract = Merge.bind(event.address);
 
-  // nft.merged = false; //TODO: need to check this out because ppl bought more than one nft during mint in Nifty Gateway. This could have led to merging.
+  nft.merged = false; //TODO: need to check this out because ppl bought more than one nft during mint in Nifty Gateway. This could have led to merging.
   nft.owner = user.id;
-  // nft.massSize = contract.massOf(tokenId);
-  // let value = contract.getValueOf(tokenId);
-  // nft.class = contract.decodeClass(value).toString();
-  // let alpha = contract._alphaId();
+  nft.massSize = contract.massOf(tokenId);
+  let value = contract.getValueOf(tokenId);
+  nft.class = contract.decodeClass(value).toString();
+  let alpha = contract._alphaId();
 
-  // if (nft.class == "FOUR" && tokenId == alpha) {
-  //   nft.color = "BLACK";
-  // } else {
-  //   nft.color = checkColor(nft.class);
-  // }
+  if (nft.class == "FOUR" && tokenId == alpha) {
+    nft.color = "BLACK";
+  } else {
+    nft.color = checkColor(nft.class);
+  }
 
-  // nft.mergeCount = contract.getMergeCount(tokenId);
+  nft.mergeCount = contract.getMergeCount(tokenId);
 
   nft.save();
 

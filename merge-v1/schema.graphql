@@ -28,7 +28,7 @@ type User @entity {
   "Details about NFTs being held by this User"
   massNFTs: [NFT!]! @derivedFrom(field: "owner") #pak: allows one to query info about NFTs belonging to this user
   "Whether this User can carry more than one mass NFT"
-  whitelist: Boolean! #pak: These are central marketplaces typically like Nifty Gateway
+  whitelist: Boolean #pak: These are central marketplaces typically like Nifty Gateway
 }
 
 """
@@ -38,15 +38,15 @@ type NFT @entity {
   "Unique tokenID"
   id: ID!
   "Whether the NFT has been merged, and therefore deleted"
-  merged: Boolean! #pak
+  merged: Boolean #pak
   "Current owner unless merged where it would be address(0)"
   owner: User!
   "Size of mass for a specific NFT"
-  massSize: BigInt! #pak
+  massSize: BigInt #pak
   "Color of mass NFT; BLACK is Alpha"
-  color: Color! #pak: class in smart contract specifies color where decodeClass(_values[tokenId]) is used in generating metadata (on-chain svg).
+  color: Color #pak: class in smart contract specifies color where decodeClass(_values[tokenId]) is used in generating metadata (on-chain svg).
   "Rarity for mass NFTs; higher numbers are highest rarity"
-  class: Class! #pak: in smart contracts, class is a uint
+  class: Class #pak: in smart contracts, class is a uint
   "Amount of times this tokenID has absorbed other NFTs"
-  mergeCount: BigInt! #pak
+  mergeCount: BigInt #pak
 }
