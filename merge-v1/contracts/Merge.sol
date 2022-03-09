@@ -252,6 +252,7 @@ contract Merge is ERC721, ERC721Metadata {
         // owners are same, so decrement their balance as we are merging
         _balances[owner] -= 1;
 
+        // updating _values mapping for tokenLarge, deleting _values mapping for tokenSmall, checking alpha, increase mergeCount(tokenLarge), returns tokenSmall
         tokenIdDead = _merge(tokenIdRcvr, tokenIdSndr);
 
         // clear ownership of dead token
@@ -416,7 +417,7 @@ contract Merge is ERC721, ERC721Metadata {
 
     /**
      * @notice called as a result of either merge() from whitelisted addresses OR through call-sequence from safeTransferFrom() for non-whitelisted addresses
-     * NOTE: increases the _values() mapping value for larger tokenId out of pair.
+     * NOTE: increases the _values() mapping value for larger tokenId out of pair. Deletes _values() mapping value for tokenIdSmall
      * NOTE: checks that new combinedMass is greater or not than _alphaMass
      * NOTE: increases mergeCount for respective tokenId, decrements _countToken by 1, emits MassUpdate()
      */
@@ -573,7 +574,7 @@ contract Merge is ERC721, ERC721Metadata {
         // return new token id index to storage
         _nextMintId = index;  
 
-        // update token supply and balances based on batch mint
+        // update token supply and balanqces based on batch mint
         _countToken += newlyMintedCount;
         _balances[omnibus] += newlyMintedCount;
 

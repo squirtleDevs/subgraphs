@@ -23,85 +23,63 @@ import { EMPTY_ADDRESS } from "./utils";
  *
  */
 
-// Helper functions: these are smaller functions that I'll use for logic.
-
-/**
- * TODO: Do called functions inherit the scope of the caller function (and thus the event details in this case and all that). Going to assume no, searching quickly kind of got confusing.
- * @param massClass corresponding to the enum Class from schema
- * @returns
- */
-function checkColor(massClass: String): Color {
-  if (massClass == "ONE") return "WHITE";
-  if (massClass == "TWO") return "YELLOW";
-  if (massClass == "THREE") return "BLUE";
-  if (massClass == "FOUR") return "RED";
+export function _handleTransferMint(event: Transfer): void {
+  let user = new User(event.params.to.toHexString());
+  user.save();
 }
 
 /**
- * @notice instantiates User and NFTs entities when minting carried out with Nifty Gateway
+ * So when else is Transfer() event emitted?
+ * From ERC721.sol: safeMint(), burn()
+ * From merge.sol: merge(), _transfer() except there are different scenarios within the fn that call transfer
+ *
+ * When AlphaMassUpdate() happens: during _merge() if combinedMass > current _alphaMass, and during mint() which is a special NiftyGateway function pretty much. NOTE that mint() can only be called when minting is not finalized. So it is done!
+ *
+ * When MassUpdate() happens: 1.) _merge() when a merge actually happens., 2.) when a _burnNoEmitTransfer() happens.
+ *
+ * What is a _burnNoEmitTransfer(): Looks like it is just the internal burn implementation code. It is only called when burn() OR transferFrom() is called with _dead as the 'to' address. I'm not sure when _dead is used as the 'to' address... I guess that is when merge becomes burnable.
+ *
+ * Approval(owner, to, tokenId): triggered when _approve() internal called --> called when approve public is called, AND when _burnNoEmitTransfer() is called.
+ *
+ * ApproveForAll(): triggered when setApprovalForAll() public called -->
+ *
+ * OK, so now I understand the different times that these events are called. Naturally, creating the entities as per the chronological order of events emitted (and their respective scenarios) is an OK idea. So it would look like:
+ *
+ * - [ ] Create function for minting scenario (directly )
+ * - [ ] Create function for
+ *  - IMO, it seems that the backend of NiftyGateway handles purchases from users, then they keep track of who has what mass, from there, they hook into the logic of mint() in pak's contracts, where they are given a ton of NFTs (in merge contract records... but I don't see 'transfer' actually being called!). These NFTs are not via normal minting and transfering of NFTs though,
+ * ---> OH SNAP. The NFTs are all minted to Nifty Gateway. From there Nifty Gateway can transfer them out to respective addresses (as per user's choice). Hmm. So when mint() is called by NiftyGateway, is the minting somehow taken care of by Nifty Gateway?
+ *
+ */
+
+/**
+ * @notice instantiates User entity when minting carried out with Nifty Gateway
  */
 export function handleTransfer(event: Transfer): void {
-  let to = event.params.to.toHex();
-  let user = User.load(to);
-  let from = event.params.from.toHex();
-  let tokenId = event.params.tokenId;
+  let user = User.load(event.transaction.to.toHex());
+}
 
-  let contract = Merge.bind(event.address);
-  let newNFT: NFTs;
+export function handleTransfer(event: Transfer): void {
+  // when _safeMint() is called in base contract erc721, it emits transfer event where from is address(0). Try using this to load new NFTs and Users entities
+
+  let user = User.load(event.params.to.toHex()); // from my understanding, if there is no User entity for this address, then we continue through the function logic.
+
+  let from = event.transaction.from.toHex();
+  // first, if `null` checks create new user entity if `from` was address(0)
+  // TODO: look at ENS subgraph and study how they have implemented ethereum aspects such as EMPTYADDRESS within their mapping files as per: https://github.com/ensdomains/ens-subgraph/blob/master/src/utils.ts
+
 
   // check that user entity hasn't been create already
-  if (!user) {
-    user = new User(to);
-    user.whitelist = false;
-    // TODO: not sure if I should load NFTs here for this or not...
-  } else if (
-    // check that it is a mint tx, if so update user (nifty gateway omnibus)
-    from == EMPTY_ADDRESS
-  ) {
-    // user.massNFTs = []
+  if (!user){
+    user = new User(event.transaction.to.toHex());
+    
 
-    //NiftyGateway NFT likely cause that is where I think the only minting happened
-    newNFT = createNFT(event.params.tokenId.toString(), user);
+  } else if
+  ( from == EMPTY_ADDRESS) {
+    user = new User(event.transaction.)
   }
-
-  // ** NFT DETAILS ** //
-  // TODO: Not sure if I should pass NFT details through above if/else above to createNFT(), or if I can populate the newly created NFT within the handleTransfer function here aftewards. I could change the required fields accordingly to what would be best.
-  newNFT.massSize = contract.massOf(tokenId);
-  let value = contract.getValueOf(tokenId);
-  newNFT.class = contract.decodeClass(value).toString(); // TODO: not sure if I should leave it as string, or leave as BigInt. Figure it out as you make queries. Converted to string to use enums in schema for Class.
-  let alpha = contract._alphaId();
-
-  if (newNFT.class == "FOUR" && tokenId == alpha) {
-    newNFT.color = "BLACK";
-  } else {
-    newNFT.color = checkColor(newNFT.Class);
-  }
-
-  newNFT.mergeCount = contract.getMergeCount(tokenId);
 }
 
-/**
- * @notice create new NFT entity types upon mint
- * @param tokenId
- */
-function createNFT(tokenId: string, owner: string): NFTs {
-  let nft = new NFTs(tokenId);
-
-  //See TODO: regarding ** NFT DETAILS ** in handleTransfer() function
-  nft.merged = false; //TODO: need to check this out because ppl bought more than one nft during mint in Nifty Gateway. This could have led to merging.
-  nft.owner = owner;
-  nft.massSize = todoMASS; //how do I get this if no event provides info.
-  nft.color = todoCOLOR; // same question as massSize
-  nft.class = todoCLASS; // same question as massSize
-  nft.mergeCount = todoMERGECOUNT; // same question as massSize
-
-  return nft;
-}
-
-/**
- *
- * @param event
- */
 export function handleApproval(event: Approval): void {}
 
 export function handleApprovalForAll(event: ApprovalForAll): void {}

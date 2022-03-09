@@ -10,7 +10,7 @@ enum Color {
 }
 
 """
-Class of NFT from least rare to rarest that corresponds to Color
+Class of NFT from least rare to rarest that corresponds to Color. Would use integers, but enums only allow strings.
 """
 enum Class {
   ONE

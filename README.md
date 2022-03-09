@@ -70,6 +70,15 @@ From glancing through OpenSea and the merge contracts:
   - [ ] Update subgraph and test with queries. Do this for one 'chunk' of the data entities, and then once you're good with that do it for the rest // est: 1 hr
 - [ ] Review with DK to see what parts could be improved. Do through PRs on github.
 
+- [ ] Finish basic entity subgraphs in mapping:
+
+  - [x] Add in whitelist for user entity
+  - [ ] Review the code and highlight questions to go over with Dave
+  - [ ] Try compiling it
+  - [/] Add in note about how if someone purchased another mass during the minting phase... then a merge may have happened but that's backend stuff too with Nifty Gateway... confusing.
+
+- [ ] You can only use event handlers once. So... when an NFT is transferred, we need to take all scenarios into account.
+
 ---
 
 ### 🔎 Perspective of Subgraph
