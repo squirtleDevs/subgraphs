@@ -1,0 +1,50 @@
+"""
+These are typical queries that I think would be used to extract data for a front-end similar to: https://merge.tina.cafe/9
+"""
+
+{
+  exampleEntities(first: 5) {
+    id
+    count
+    tokenId
+    alphaMass
+  }
+}
+
+
+"""
+Leaderboard Query: pulling information for mass leaderboard based off of value or massCount usually
+"""
+{
+  NFT(first: 100, orderBy: massSize, orderDirection: desc, where: { merged_not(true)}) {
+    id
+    merged
+    owner
+    massSize
+    color
+    massClass
+    mergeCount
+  }
+}
+
+"""
+User Query: check to see what NFT a user has, and its details... TODO: when the front-end (hypothetical) queries for user data for an person's connected HD wallet (and thus public address)... does their front end take that and input it as an input parameter into a graphQL query to the subgraph?
+"""
+{
+  User(id: <userAddressAsHexString>) {
+    id
+    massNFTs #Don't know if we need to specify more, of I guess that's the great thing, the front end can just poke deeper into the NFT dataset?
+    whitelist
+  }
+}
+
+"""
+User Query Option 2: if the above doesn't work, I guess the front-end (hypothetical) just queries for all the Users that have populated entities. In that case, they would just query everything at the current block and use that data in their own database?
+"""
+{
+  User(first: 100, orderBy: massNFTs.massSize, orderDirection: desc, where: { massNFTs.merged_not(true)}){
+    id
+    massNFTs #Don't know if we need to specify more, of I guess that's the great thing, the front end can just poke deeper into the NFT dataset?
+    whitelist
+  }
+}

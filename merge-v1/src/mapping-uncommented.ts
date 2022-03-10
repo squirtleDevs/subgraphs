@@ -8,7 +8,7 @@ import {
   MassUpdate,
   Transfer,
 } from "../generated/Merge/Merge";
-import { User, NFT, ExampleEntity, Color, Class } from "../generated/schema";
+import { User, NFT } from "../generated/schema";
 import { EMPTY_ADDRESS } from "./utils";
 
 /* ========== HELPER FUNCTIONS ========== */
@@ -108,7 +108,7 @@ function createNFT(event: Transfer, user: User): NFT {
   nft.owner = user.id;
   nft.massSize = contract.massOf(tokenId);
   let value = contract.getValueOf(tokenId);
-  nft.class = contract.decodeClass(value).toString();
+  nft.mergeClass = contract.decodeClass(value).toString();
   let alpha = contract._alphaId();
 
   if (nft.class == "FOUR" && tokenId == alpha) {
