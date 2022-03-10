@@ -106,9 +106,9 @@ function createNFT(event: Transfer, user: User): NFT {
 
   // nft.merged = false; //TODO: need to check this out because ppl bought more than one nft during mint in Nifty Gateway. This could have led to merging.
   nft.owner = user.id;
-  // nft.massSize = contract.massOf(tokenId);
-  // let value = contract.getValueOf(tokenId);
-  // nft.mergeClass = contract.decodeClass(value).toString();
+  nft.massSize = contract.massOf(tokenId);
+  nft.massValue = contract.getValueOf(tokenId);
+  nft.mergeClass = contract.decodeClass(nft.massValue).toString();
   // let alpha = contract._alphaId();
 
   // if (nft.mergeClass == "FOUR" && tokenId == alpha) {
@@ -117,7 +117,9 @@ function createNFT(event: Transfer, user: User): NFT {
   //   nft.color = checkColor(nft.mergeClass);
   // }
 
-  // nft.mergeCount = contract.getMergeCount(tokenId);
+  nft.mergeCount = contract.getMergeCount(tokenId); //only time it updates is when _merge() or batchSetMergeCountFromSnapshot() is called. The former is what is called post-mint-phase.
+
+  // NOTE: transfer() is only called: 1. in merge() after _merge() is called 2. in _transfer() when to == _dead, two emits happen there. OR when transferring to another address AND/OR when token _merged into another tokenId (after transfer) --> thus taking care of the transfer event of sending a tokenId to address(0). Recall that _transfer() really  just ends up changing the record of ownership of the digital asset in the smart contract.
 
   nft.save();
 

@@ -79,7 +79,7 @@ function getNFT(event: Transfer, user: User): NFT {
   //user.massNFT = [] //TODO: not sure if I will need this line, will find out when testing querying.
 
   //NiftyGateway NFT likely cause that is where I think the only minting happened
-
+  nft.save();
   return nft;
 }
 
