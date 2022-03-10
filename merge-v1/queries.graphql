@@ -11,18 +11,35 @@ These are typical queries that I think would be used to extract data for a front
   }
 }
 
-
 """
-Leaderboard Query: pulling information for mass leaderboard based off of value or massCount usually
+Simple Queries
 """
 {
-  NFT(first: 100, orderBy: massSize, orderDirection: desc, where: { merged_not(true)}) {
+  NFT(first: 5) {
     id
     merged
     owner
     massSize
     color
     massClass
+    mergeCount
+  }
+}
+
+
+## When I have iteratively gone through creating the subgraph
+
+"""
+Leaderboard Query: pulling information for mass leaderboard based off of value or massCount usually
+"""
+{
+  nfts(first: 100, orderBy: massSize, orderDirection: desc, where: { merged_not(true)}) {T
+    id
+    merged
+    owner
+    massSize
+    color
+    mergeClass
     mergeCount
   }
 }

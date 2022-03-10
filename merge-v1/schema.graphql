@@ -52,5 +52,5 @@ type NFT @entity {
   "Amount of times this tokenID has absorbed other NFTs"
   mergeCount: BigInt #pak
   "unix timestamps when merge txs occurred"
-  timeStamp: [BigInt] #pak
+  timeStamp: [BigInt!] #pak
 }

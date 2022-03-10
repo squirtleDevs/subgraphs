@@ -1,30 +1,29 @@
 import { Address, BigInt } from "@graphprotocol/graph-ts";
 import {
   Merge,
+  Transfer,
   AlphaMassUpdate,
   Approval,
   ApprovalForAll,
   ConsecutiveTransfer,
   MassUpdate,
-  Transfer,
 } from "../generated/Merge/Merge";
 import { User, NFT } from "../generated/schema";
 import { EMPTY_ADDRESS } from "./utils";
 
 /* ========== HELPER FUNCTIONS ========== */
 
-/**
- * @notice sort color of nft based on massClass
- * @param massClass corresponding to the enum Class from schema
- * @returns Color
- * TODO: running into type error and not sure how to make the return value a type, not a value here. Originally I was hoping to import enums from the schema, but that doesn't work. I think that makes sense though.
- */
-// function checkColor(massClass: String): Color {
+// /**
+//  * @notice sort color of nft based on massClass
+//  * @param massClass corresponding to the enum Class from schema
+//  * @returns Color: String
+//  */
+//  function checkColor(mergeClass: String): String {
 //   let color: String;
-//   if (massClass == "ONE") return (color = "WHITE");
-//   if (massClass == "TWO") return (color = "YELLOW");
-//   if (massClass == "THREE") return (color = "BLUE");
-//   if (massClass == "FOUR") return (color = "RED");
+//   if (mergeClass == "ONE") return (color = "WHITE");
+//   if (mergeClass == "TWO") return (color = "YELLOW");
+//   if (mergeClass == "THREE") return (color = "BLUE");
+//   if (mergeClass == "FOUR") return (color = "RED");
 // }
 
 /* ========== EVENT HANDLERS ========== */
@@ -43,12 +42,13 @@ export function handleTransfer(event: Transfer): void {
   let user = User.load(to);
 
   // check that user entity hasn't been create already
+  // when nifty first mints first ever nft... they go through this.
   if (!user) {
     user = new User(to);
-    // user.whitelist = false;
+    // user.whitelist = false; //should be replaced by a callHandler later.
     nft = getNFT(event, user);
   } else if (
-    // check that it is a mint tx, if so update user (nifty gateway omnibus)
+    // check that it is a mint tx, if so update user (nifty gateway omnibus likely)
     from == EMPTY_ADDRESS
   ) {
     // user.massNFT = [] TODO: not sure if this is needed
@@ -70,20 +70,23 @@ function getNFT(event: Transfer, user: User): NFT {
 
   let nft = NFT.load(tokenId);
 
-  // let contract = Merge.bind(event.address);
-
   // check that nft entity hasn't been create already
+  // Step 1. so nifty walks through this first time ever. Essentially making a new NFT entity where owner is nifty gateway omnibus.
+  // Scenario 2: new whitelisted address is allowed to mint (let's say there was one before minting was closed)... they would go through the same process as step 1.
+  // Scenario 3: Exports from nifty, and transfers from other addresses now once minting is over. All nft entities should have been created before minting was closed / migration was allowed. So there is no scenario 3 for this if statement.
   if (!nft) {
     return (nft = createNFT(event, user));
   }
 
+  // change ownership of nft assuming merge didn't happen right now. Subgraph rn doesn't catch merges so this is a big TODO:
+  // TODO: if merge happened for this transfer event, then that nft owner should not be this user. So right now... I would think it shows migrations and thus other owners owning NFTs.
   nft.owner = user.id;
   // TODO: update nft fields for pre-existing nft! This would get complicated though cause it may update with massSize. For now, it's not in the scope of this PR cause I am just handling minting.
 
   //user.massNFT = [] //TODO: not sure if I will need this line, will find out when testing querying.
 
   //NiftyGateway NFT likely cause that is where I think the only minting happened
-
+  nft.save();
   return nft;
 }
 
@@ -105,13 +108,13 @@ function createNFT(event: Transfer, user: User): NFT {
   nft.owner = user.id;
   // nft.massSize = contract.massOf(tokenId);
   // let value = contract.getValueOf(tokenId);
-  // nft.class = contract.decodeClass(value).toString();
+  // nft.mergeClass = contract.decodeClass(value).toString();
   // let alpha = contract._alphaId();
 
-  // if (nft.class == "FOUR" && tokenId == alpha) {
+  // if (nft.mergeClass == "FOUR" && tokenId == alpha) {
   //   nft.color = "BLACK";
   // } else {
-  //   nft.color = checkColor(nft.class);
+  //   nft.color = checkColor(nft.mergeClass);
   // }
 
   // nft.mergeCount = contract.getMergeCount(tokenId);
@@ -123,26 +126,40 @@ function createNFT(event: Transfer, user: User): NFT {
 
 /* ========== TBD FUNCTIONS ========== */
 
-// /**
-//  * @notice
-//  * @param event
-//  */
-// export function handleApproval(event: Approval): void {}
+/**
+ * @notice
+ * @param event
+ */
+export function handleApproval(event: Approval): void {}
 
-// /**
-//  * @notice
-//  * @param event
-//  */
-// export function handleApprovalForAll(event: ApprovalForAll): void {}
+/**
+ * @notice
+ * @param event
+ */
+export function handleApprovalForAll(event: ApprovalForAll): void {}
 
-// /**
-//  * @notice
-//  * @param event
-//  */
-// export function handleConsecutiveTransfer(event: ConsecutiveTransfer): void {}
+/**
+ * @notice
+ * @param event
+ */
+export function handleConsecutiveTransfer(event: ConsecutiveTransfer): void {}
 
-// /**
-//  * @notice
-//  * @param event
-//  */
-// export function handleMassUpdate(event: MassUpdate): void {}
+/**
+ * @notice
+ * @param event
+ */
+export function handleMassUpdate(event: MassUpdate): void {}
+
+/**
+ * @notice
+ * @param event
+ */
+export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {}
+
+//  /**
+//   * EVENTS to import as subgraph is iteratively developed: AlphaMassUpdate,
+//   Approval,
+//   ApprovalForAll,
+//   ConsecutiveTransfer,
+//   MassUpdate,
+//   */

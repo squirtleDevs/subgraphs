@@ -38,12 +38,9 @@ function checkColor(mergeClass: String): String {
 export function handleTransfer(event: Transfer): void {
   let to = event.params.to.toHex();
   let from = event.params.from.toHex();
-  let tokenId = event.params.tokenId;
   let nft: NFT;
 
   let user = User.load(to);
-
-  let contract = Merge.bind(event.address);
 
   // check that user entity hasn't been create already
   if (!user) {
@@ -67,13 +64,9 @@ export function handleTransfer(event: Transfer): void {
  * @returns
  */
 function getNFT(event: Transfer, user: User): NFT {
-  let to = event.params.to.toHex();
-  let from = event.params.from.toHex();
   let tokenId = event.params.tokenId.toString();
 
   let nft = NFT.load(tokenId);
-
-  let contract = Merge.bind(event.address);
 
   // check that nft entity hasn't been create already
   if (!nft) {
@@ -149,3 +142,9 @@ function createNFT(event: Transfer, user: User): NFT {
 //  * @param event
 //  */
 // export function handleMassUpdate(event: MassUpdate): void {}
+
+// /**
+//  * @notice
+//  * @param event
+//  */
+//  export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {}
