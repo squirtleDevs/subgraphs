@@ -19,12 +19,12 @@ import { EMPTY_ADDRESS } from "./utils";
  * @returns Color
  * TODO: running into type error and not sure how to make the return value a type, not a value here. Originally I was hoping to import enums from the schema, but that doesn't work. I think that makes sense though.
  */
-function checkColor(massClass: String): String {
+function checkColor(mergeClass: String): String {
   let color: String;
-  if (massClass == "ONE") return (color = "WHITE");
-  if (massClass == "TWO") return (color = "YELLOW");
-  if (massClass == "THREE") return (color = "BLUE");
-  if (massClass == "FOUR") return (color = "RED");
+  if (mergeClass == "ONE") return (color = "WHITE");
+  if (mergeClass == "TWO") return (color = "YELLOW");
+  if (mergeClass == "THREE") return (color = "BLUE");
+  if (mergeClass == "FOUR") return (color = "RED");
 }
 
 /* ========== EVENT HANDLERS ========== */
@@ -111,10 +111,10 @@ function createNFT(event: Transfer, user: User): NFT {
   nft.mergeClass = contract.decodeClass(value).toString();
   let alpha = contract._alphaId();
 
-  if (nft.class == "FOUR" && tokenId == alpha) {
+  if (nft.mergeClass == "FOUR" && tokenId == alpha) {
     nft.color = "BLACK";
   } else {
-    nft.color = checkColor(nft.class);
+    nft.color = checkColor(nft.mergeClass);
   }
 
   nft.mergeCount = contract.getMergeCount(tokenId);

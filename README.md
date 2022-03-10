@@ -80,9 +80,26 @@ From glancing through OpenSea and the merge contracts:
 - [x] Move `NFT` updates to `createNFT()` instead of `handleTransfer()`. Do this by passing `event` type through to the callee function `createNFT()`
 - [x] Make sure to save newly created entities or updated ones.
 - [x] Clean up architecture to consider `getNFT()` vs `createNFT()`
-- [/] Clean up the comments within the mapping file
+- [x] Clean up the comments within the mapping file
+
+- [x] Submit in-progress PR that is showing typescript errors.
+- [x] Sort out plan for what parts to comment out and how to query them. Write out how you would query them. At least for the data you have so far.
+- [x] Fix small bug that Dave found causing the compile error: field `class`, change it to `mergeClass`
+- [ ] run `yarn codegen` since you changed the schema
 - [/] Comment out the code and run iterative subgraph deployments, test query them too.
-- [ ] Submit PR with finished subgraph draft for minting function for `merge.sol`
+- [/] Submit PR with finished subgraph draft for minting function for `merge.sol`
+
+### After submitting PR
+
+- [ ] Add a whitelist call handler
+- [ ] Work through next scenario of transfer event handling.
+- [x] Add a unix timestamp array field so front-end can easily grab the times that merge txs occurred.
+- [ ] Add the following to the schema for NFT:
+
+```
+  # "tx hash - TODO: I think I did this wrong just gotta look it up"
+  # blockHash: [Bytes] #pak
+```
 
 ########
 

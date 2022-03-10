@@ -12,7 +12,7 @@ enum Color {
 """
 Class of NFT from least rare to rarest that corresponds to Color. Would use integers, but enums only allow strings.
 """
-enum Class {
+enum MergeClass {
   ONE
   TWO
   THREE
@@ -41,12 +41,14 @@ type NFT @entity {
   merged: Boolean #pak
   "Current owner unless merged where it would be address(0)"
   owner: User!
-  "Size of mass for a specific NFT"
+  "Core metric: used for each NFT in smart contracts to get derived metrics"
+  massValue: BigInt
+  "Derived metric: size of mass for a specific NFT"
   massSize: BigInt #pak
-  "Color of mass NFT; BLACK is Alpha"
+  "Derived metric: color of mass NFT; BLACK is Alpha"
   color: Color #pak: class in smart contract specifies color where decodeClass(_values[tokenId]) is used in generating metadata (on-chain svg).
-  "Rarity for mass NFTs; higher numbers are highest rarity"
-  mergeClass: Class #pak: in smart contracts, class is a uint
+  "Derived metric: rarity for mass NFTs; higher numbers are highest rarity"
+  mergeClass: MergeClass #pak: in smart contracts, class is a uint
   "Amount of times this tokenID has absorbed other NFTs"
   mergeCount: BigInt #pak
   "unix timestamps when merge txs occurred"
