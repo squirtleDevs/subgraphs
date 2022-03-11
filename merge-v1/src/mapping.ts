@@ -26,6 +26,27 @@ import { EMPTY_ADDRESS } from "./utils";
 //   if (mergeClass == "FOUR") return (color = "RED");
 // }
 
+/**
+ * @notice sort mergeClass as a string to fit schema enum reqs
+ * @param _mergeClass
+ * @returns mergeClass: String
+ */
+function checkMergeClass(_mergeClass: BigInt): String {
+  let mergeClass: String;
+  mergeClass = "ONE";
+  if (_mergeClass == new BigInt(1)) {
+    return mergeClass;
+  } else if (_mergeClass == new BigInt(2)) {
+    mergeClass = "TWO";
+  } else if (_mergeClass == new BigInt(3)) {
+    mergeClass = "THREE";
+  } else if (_mergeClass == new BigInt(4)) {
+    mergeClass = "FOUR";
+  }
+
+  return mergeClass;
+}
+
 /* ========== EVENT HANDLERS ========== */
 
 /**
@@ -35,11 +56,16 @@ import { EMPTY_ADDRESS } from "./utils";
  * TODO: 2. transfer from NG to ext. addresses, 3. transfers btw ext. addresses to other ext. addresses (not whitelisted), 4. merge() being called, 5. possibly merge being called by NG specifically.
  */
 export function handleTransfer(event: Transfer): void {
-  let to = event.params.to.toHex();
-  let from = event.params.from.toHex();
+  let _to = event.params.to;
+  let _from = event.params.from;
+
+  let to = _to.toHex();
+  let from = _from.toHex();
   let nft: NFT;
 
   let user = User.load(to);
+  let contract = Merge.bind(event.address);
+  let fromWhitelist = contract.isWhitelisted(_to);
 
   // check that user entity hasn't been create already
   // when nifty first mints first ever nft... they go through this.
@@ -53,6 +79,7 @@ export function handleTransfer(event: Transfer): void {
   ) {
     // user.massNFT = [] TODO: not sure if this is needed
     nft = createNFT(event, user);
+  } else if (from == to && fromWhiteList) {
   }
 
   user.save();
@@ -107,8 +134,14 @@ function createNFT(event: Transfer, user: User): NFT {
   // nft.merged = false; //TODO: need to check this out because ppl bought more than one nft during mint in Nifty Gateway. This could have led to merging.
   nft.owner = user.id;
   nft.massSize = contract.massOf(tokenId);
-  nft.massValue = contract.getValueOf(tokenId);
-  nft.mergeClass = contract.decodeClass(nft.massValue).toString();
+  let nftValue = contract.getValueOf(tokenId);
+  nft.massValue = nftValue;
+  // nft.mergeClass = contract.decodeClass(nftValue).toString();
+
+  let _mergeClass = contract.decodeClass(nftValue);
+
+  nft.mergeClass = checkMergeClass(_mergeClass);
+
   // let alpha = contract._alphaId();
 
   // if (nft.mergeClass == "FOUR" && tokenId == alpha) {

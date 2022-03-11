@@ -85,9 +85,29 @@ From glancing through OpenSea and the merge contracts:
 - [x] Submit in-progress PR that is showing typescript errors.
 - [x] Sort out plan for what parts to comment out and how to query them. Write out how you would query them. At least for the data you have so far.
 - [x] Fix small bug that Dave found causing the compile error: field `class`, change it to `mergeClass`
-- [ ] run `yarn codegen` since you changed the schema
-- [/] Comment out the code and run iterative subgraph deployments, test query them too.
+- [x] run `yarn codegen` since you changed the schema
+- [x] Comment out the code and run iterative subgraph deployments, test query them too.
 - [/] Submit PR with finished subgraph draft for minting function for `merge.sol`
+
+### Update as per discussion with DK - March 10th, 2022
+
+Had a good half hour review with DK on the subgraph so far. This particular subgraph emits Transfer events probably the most out of the other event emissions throughout time. As such, carrying out contract calls can be very intensive when it comes to having the subgraph sync fully with the ethereum mainnet network.
+
+Contract calling means that the subgraph is literally calling an ethereum node for information directly from the smart contract records. Although this is completely okay to do, it increase the syncing time substantially. This is not the best practice because iterative subgraph design and development requires constant tweaking and redployment in terms of the mapping and other subgraph files.
+
+Therefore the following tasks will be done to design this subgraph in a faster syncing way, that ultimately will save time in development since I will not have to wait 2 hours+ to sync the subgraph to the mainnet network everytime I redeploy it with an upgrade.
+
+- [ ] Extract the value data of each nft token when they are newly minted. Do this via connecting to the contract. This will bhe the only time hopefully that I connect to the contract (vs right now I currently have 4-5 times in my code that I call the contract). This should quicken the syncing by 3-5x.
+- [ ] Use the value data and write out implementation code that decodes the mass, class, and whatever else information that may be available through obtaining the value of each token.
+- [ ] Write the mapping so that it also sorts out which class will be merged when that edge case happens (a yellow being merged into a black for example).
+- [ ] Once the subgraph is updated to sync much faster using these \_value details, then I can submit my PR.
+
+Cool lessons learnt:
+
+- Note about syncing
+- ENUMs are good, even in my case of this subgraph, as where I use it, there really are only so many options. You would use a uint if you had boundless options.
+- pure functions in solidity mean that no matter what, the return value will always be the same. Think of an example where your return value is the product of some input param and the block.timestamp. That would always change. That would not fall under a pure function.
+  - the pure functions in the merge smart contract signal that we can actually feel confident in building out the logic in the subgraph for that respective function!
 
 ### After submitting PR
 
