@@ -1,3 +1,5 @@
+//IMPORTANT: THIS MAPPING VERSION WAS THE VERSION THAT WAS DEPLOYED ON MARCH 10TH. DK AND SP REVIEWED THIS VERSION TOGETHER AND DECIDED TO MOVE FORWARD WITH ONLY EXTRACTING THE VALUE FROM SMART CONTRACT DIRECTLY AND WORKING WITHIN THE SUBGRAPH MAPPING FILE TO SORT OUT OTHER FIELD DETAILS FROM THAT. THIS WAY IT WOULD BE FASTER FOR SYNCING.
+
 import { Address, BigInt } from "@graphprotocol/graph-ts";
 import {
   Merge,
@@ -9,7 +11,7 @@ import {
   MassUpdate,
 } from "../generated/Merge/Merge";
 import { User, NFT } from "../generated/schema";
-import { EMPTY_ADDRESS, CLASS_MULTIPLIER } from "./utils";
+import { EMPTY_ADDRESS } from "./utils";
 
 /* ========== HELPER FUNCTIONS ========== */
 
@@ -64,8 +66,8 @@ export function handleTransfer(event: Transfer): void {
   let nft: NFT;
 
   let user = User.load(to);
-  // let contract = Merge.bind(event.address);
-  // let fromWhitelist = contract.isWhitelisted(_to);
+  let contract = Merge.bind(event.address);
+  let fromWhitelist = contract.isWhitelisted(_to);
 
   // check that user entity hasn't been create already
   // when nifty first mints first ever nft... they go through this.
@@ -79,9 +81,8 @@ export function handleTransfer(event: Transfer): void {
   ) {
     // user.massNFT = [] TODO: not sure if this is needed
     nft = createNFT(event, user);
+  } else if (from == to && fromWhiteList) {
   }
-  // } else if (from == to && fromWhiteList) {
-  // }
 
   user.save();
 }
@@ -121,7 +122,6 @@ function getNFT(event: Transfer, user: User): NFT {
 /**
  * @notice create new NFT entity types upon mint
  * @param event: Transfer from handleTransfer() caller function
- * @dev key thing is the nftValue variable that is the encoded value metric used within the smart contracts to encode the mass and class data for each nft
  */
 function createNFT(event: Transfer, user: User): NFT {
   let to = event.params.to.toHex();
@@ -135,14 +135,12 @@ function createNFT(event: Transfer, user: User): NFT {
 
   // nft.merged = false; //TODO: need to check this out because ppl bought more than one nft during mint in Nifty Gateway. This could have led to merging.
   nft.owner = user.id;
-
+  nft.massSize = contract.massOf(tokenId);
   let nftValue = contract.getValueOf(tokenId);
+  nft.massValue = nftValue;
+  // nft.mergeClass = contract.decodeClass(nftValue).toString();
 
-  // obtain nft fields throughs calculating off of encoded value
-
-  nft.massSize = nftValue % CLASS_MULTIPLIER; //TODO: not sure why there are error lines. It builds fine.
-
-  let _mergeClass = nftValue / CLASS_MULTIPLIER;
+  let _mergeClass = contract.decodeClass(nftValue);
 
   nft.mergeClass = checkMergeClass(_mergeClass);
 
@@ -154,7 +152,7 @@ function createNFT(event: Transfer, user: User): NFT {
   //   nft.color = checkColor(nft.mergeClass);
   // }
 
-  let mergeCount = 0; //only time mergeCount for an NFT updates is when _merge() or batchSetMergeCountFromSnapshot() is called. The former is what is called post-mint-phase.
+  nft.mergeCount = contract.getMergeCount(tokenId); //only time it updates is when _merge() or batchSetMergeCountFromSnapshot() is called. The former is what is called post-mint-phase.
 
   // NOTE: transfer() is only called: 1. in merge() after _merge() is called 2. in _transfer() when to == _dead, two emits happen there. OR when transferring to another address AND/OR when token _merged into another tokenId (after transfer) --> thus taking care of the transfer event of sending a tokenId to address(0). Recall that _transfer() really  just ends up changing the record of ownership of the digital asset in the smart contract.
 
