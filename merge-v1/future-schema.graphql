@@ -93,6 +93,10 @@ type Collection @entity {
   totalMass: Int!
   "ERC token standard used in this collection"
   tokenStandard: String!
+  "TokenID of alpha mass"
+  alphaMass: String
+  "Owner of alpha mass"
+  alphaOwner: [NFTs!]! @derivedFrom(field: "tokenID")
 }
 
 """

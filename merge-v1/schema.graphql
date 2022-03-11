@@ -53,4 +53,6 @@ type NFT @entity {
   mergeCount: BigInt #pak
   "unix timestamps when merge txs occurred"
   timeStamp: [BigInt!] #pak
+  "Whether the NFT is alpha or not"
+  isAlpha: Boolean #pak
 }
