@@ -25,7 +25,7 @@ import { EMPTY_ADDRESS, CLASS_MULTIPLIER } from "./utils";
  * @param massClass corresponding to the enum Class from schema
  * @returns Color: string
  */
-function checkColor(mergeClass: string): string {
+export function checkColor(mergeClass: string): string {
   let color: string;
   color = "WHITE";
   if (mergeClass == "ONE") {
@@ -45,7 +45,7 @@ function checkColor(mergeClass: string): string {
  * @param _mergeClass
  * @returns mergeClass: string
  */
-function checkMergeClass(_mergeClass: BigInt): string {
+export function checkMergeClass(_mergeClass: BigInt): string {
   let mergeClass: string;
   mergeClass = "ONE";
   if (_mergeClass == new BigInt(1)) {
@@ -66,10 +66,8 @@ function checkMergeClass(_mergeClass: BigInt): string {
 /**
  * @notice handles Transfer events and ultimately instantiates / updates User and NFT entities
  * @param event: Transfer
- * NOTE: Checks through different scenarios (current WIP covers): 1. minting
- * TODO: 2. transfer from NG to ext. addresses, 3. transfers btw ext. addresses to other ext. addresses (not whitelisted), 4. merge() being called, 5. possibly merge being called by NG specifically.
  */
-function handleTransfer(event: Transfer): void {
+export function handleTransfer(event: Transfer): void {
   let _to = event.params.to;
   let _from = event.params.from;
 
@@ -78,24 +76,25 @@ function handleTransfer(event: Transfer): void {
   let nft: NFT;
 
   let user = User.load(to);
-  // let contract = Merge.bind(event.address);
-  // let fromWhitelist = contract.isWhitelisted(_to);
+  let tokenId = event.params.tokenId.toString();
 
-  // check that user entity hasn't been create already
-  // when nifty first mints first ever nft... they go through this.
+  // checks if this is a new user
   if (!user) {
-    user = new User(to);
-    // user.whitelist = false; //should be replaced by a callHandler later.
+    user = new User(to); // currently, the user is loaded, but if they do exist, they move along to user.save. Then that's it. What I want is for the handleTransfer event handler to
     nft = getNFT(event, user);
-  } else if (
-    // check that it is a mint tx, if so update user (nifty gateway omnibus likely)
-    from == EMPTY_ADDRESS
-  ) {
-    // user.massNFT = [] TODO: not sure if this is needed
+  } // checks if this is a mint() scenario
+  else if (from == EMPTY_ADDRESS) {
     nft = createNFT(event, user);
+  } // checks if this is a merge() scenario
+  // I think we check if this is a merge. Recall that transfer(to==address(0)) happens when burn() is called, which is a weird scenario, and _transfer emits (to == address(0)) at the end of its tx logic, and deletes _owners[deadTokenId]. Somehow the txs I find on etherscan are actually calling burn(), which I'm still unsure of how but whatever. All mappins for the deadToken are 'deleted'
+
+  // OK, so the smart contract prevents users from having more than one NFT, except for address(0) and nifty gateway.
+  // SO that means we only get Transfer(to == address(0)) when burns or merges actually happen, and prior to this moment, NFT is temporarily sent to the merger account, but then redirected to address(0) soon after with another Transfer event.
+  else if (to == EMPTY_ADDRESS) {
+    nft = getNFT(event, user);
+  } else {
+    nft = getNFT(event, user); // TODO: I think I could actually replace this last call with `nft.owner = user.id;` but for the sake of keeping the nft-related implementation code in a separate function, I have decided not to for now.
   }
-  // } else if (from == to && fromWhiteList) {
-  // }
 
   user.save();
 }
@@ -139,27 +138,19 @@ function handleTransfer(event: Transfer): void {
  * @param event: Transfer from handleTransfer() caller
  * @returns
  */
-function getNFT(event: Transfer, user: User): NFT {
+export function getNFT(event: Transfer, user: User): NFT {
   let tokenId = event.params.tokenId.toString();
+  let to = event.params.to.toHex();
 
   let nft = NFT.load(tokenId);
-
-  // check that nft entity hasn't been create already
-  // Step 1. so nifty walks through this first time ever. Essentially making a new NFT entity where owner is nifty gateway omnibus.
-  // Scenario 2: new whitelisted address is allowed to mint (let's say there was one before minting was closed)... they would go through the same process as step 1.
-  // Scenario 3: Exports from nifty, and transfers from other addresses now once minting is over. All nft entities should have been created before minting was closed / migration was allowed. So there is no scenario 3 for this if statement.
   if (!nft) {
-    return (nft = createNFT(event, user));
+    nft = createNFT(event, user);
+    return nft;
+  } else if (to == EMPTY_ADDRESS) {
+    nft.merged = true;
+    nft.owner = EMPTY_ADDRESS;
   }
-
-  // change ownership of nft assuming merge didn't happen right now. Subgraph rn doesn't catch merges so this is a big TODO:
-  // TODO: if merge happened for this transfer event, then that nft owner should not be this user. So right now... I would think it shows migrations and thus other owners owning NFTs.
   nft.owner = user.id;
-  // TODO: update nft fields for pre-existing nft! This would get complicated though cause it may update with massSize. For now, it's not in the scope of this PR cause I am just handling minting.
-
-  //user.massNFT = [] //TODO: not sure if I will need this line, will find out when testing querying.
-
-  //NiftyGateway NFT likely cause that is where I think the only minting happened
   nft.save();
   return nft;
 }
@@ -169,7 +160,7 @@ function getNFT(event: Transfer, user: User): NFT {
  * @param event: Transfer from handleTransfer() caller function
  * @dev key thing is the nftValue variable that is the encoded value metric used within the smart contracts to encode the mass and class data for each nft
  */
-function createNFT(event: Transfer, user: User): NFT {
+export function createNFT(event: Transfer, user: User): NFT {
   let to = event.params.to.toHex();
   let from = event.params.from.toHex();
   let tokenIdString = event.params.tokenId.toString();
@@ -179,7 +170,6 @@ function createNFT(event: Transfer, user: User): NFT {
 
   let contract = Merge.bind(event.address);
 
-  // nft.merged = false; //TODO: need to check this out because ppl bought more than one nft during mint in Nifty Gateway. This could have led to merging.
   nft.owner = user.id;
 
   let nftValue = contract.getValueOf(tokenId);
@@ -199,17 +189,7 @@ function createNFT(event: Transfer, user: User): NFT {
 
   let mergeClass: string = checkMergeClass(_mergeClass);
 
-  // let alpha = contract._alphaId();
-
-  // if (nft.mergeClass == "FOUR" && tokenId == alpha) {
-  //   nft.color = "BLACK";
-  // } else {
   nft.color = checkColor(mergeClass);
-  // }
-
-  // let mergeCount = 0; //only time mergeCount for an NFT updates is when _merge() or batchSetMergeCountFromSnapshot() is called. The former is what is called post-mint-phase.
-
-  // NOTE: transfer() is only called: 1. in merge() after _merge() is called 2. in _transfer() when to == _dead, two emits happen there. OR when transferring to another address AND/OR when token _merged into another tokenId (after transfer) --> thus taking care of the transfer event of sending a tokenId to address(0). Recall that _transfer() really  just ends up changing the record of ownership of the digital asset in the smart contract.
 
   nft.save();
 
@@ -247,10 +227,3 @@ export function handleMassUpdate(event: MassUpdate): void {}
  * @param event
  */
 export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {}
-
-// //  /**
-// //   * EVENTS to import as subgraph is iteratively developed: AlphaMassUpdate,
-// //   Approval,
-// //   ApprovalForAll,
-// //   ConsecutiveTransfer,
-// //   MassUpdate,
