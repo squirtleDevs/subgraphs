@@ -449,7 +449,7 @@ contract Merge is ERC721, ERC721Metadata {
         if(combinedMass > _alphaMass) {
             _alphaId = tokenIdLarge;
             _alphaMass = combinedMass;
-            emit AlphaMassUpdate(_alphaId, combinedMass);
+            emit AlphaMassUpdate(_alphaId, combinedMass);\
         }
         
         _mergeCount[tokenIdLarge]++;

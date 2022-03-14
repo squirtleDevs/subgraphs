@@ -1,4 +1,5 @@
 import { Address, BigInt, log } from "@graphprotocol/graph-ts";
+import { bigInt } from "@graphprotocol/graph-ts/common/numbers";
 import {
   Merge,
   Transfer,
@@ -9,14 +10,7 @@ import {
   MassUpdate,
 } from "../generated/Merge/Merge";
 import { User, NFT } from "../generated/schema";
-import { EMPTY_ADDRESS, CLASS_MULTIPLIER } from "./utils";
-
-/* ========== GLOBAL VARIABLES ========== */
-
-//TODO: not sure if we should have global variables?
-
-// either store the alphaId and alphaMass size in a global variable somehow... or we have to handleAlphaMassUpdate() and take the tokenId that alphaMassUpdate gives us, and pass that to an NFT entity.
-// NFT entity takes in the tokenId and updates boolean of whether it is Alpha or not. Prior to an AlphaMassUpdate() event, does Transfer() get called? I think it does.
+import { EMPTY_ADDRESS, CLASS_MULTIPLIER, NOT_WHITE_VALUE } from "./utils";
 
 /* ========== HELPER FUNCTIONS ========== */
 
@@ -48,18 +42,47 @@ export function checkColor(mergeClass: string): string {
 export function checkMergeClass(_mergeClass: BigInt): string {
   let mergeClass: string;
   mergeClass = "ONE";
-  if (_mergeClass == new BigInt(1)) {
+  if (_mergeClass == BigInt.fromI32(1)) {
     return mergeClass;
-  } else if (_mergeClass == new BigInt(2)) {
+  } else if (_mergeClass == BigInt.fromI32(2)) {
     mergeClass = "TWO";
-  } else if (_mergeClass == new BigInt(3)) {
+  } else if (_mergeClass == BigInt.fromI32(3)) {
     mergeClass = "THREE";
-  } else if (_mergeClass == new BigInt(4)) {
+  } else if (_mergeClass == BigInt.fromI32(4)) {
     mergeClass = "FOUR";
   }
 
   return mergeClass;
 }
+
+// /**
+//  * @notice object type where properties represent value-based-decoded nft metadata
+//  * TODO: not sure but I am getting a compile error here. Asked DK. I need to just look into this. This will be done in next PR as I clean up the code.
+//  */
+// type Values = {
+//   massSize: BigInt;
+//   mergeClass: string;
+//   color: string;
+// };
+
+// /**
+//  * @notice carries out decoding of value for a particular mass NFT
+//  * @returns value : Values
+//  * @dev TODO: see Object Type Values above and the error that is there. Once that is resolved then this can be used.
+//  */
+// export function decodeValue(nftValue: BigInt): Values {
+//   let value: Values;
+//   let _mergeClass: BigInt = nftValue / CLASS_MULTIPLIER;
+//   let mergeClass = checkMergeClass(_mergeClass);
+
+//   value = {
+//     massSize: (nftValue % CLASS_MULTIPLIER) as BigInt,
+//     mergeClass: mergeClass,
+//     color: checkColor(mergeClass),
+//   };
+
+//   return value;
+// }
 
 /* ========== EVENT HANDLERS ========== */
 
@@ -80,63 +103,92 @@ export function handleTransfer(event: Transfer): void {
 
   // checks if this is a new user
   if (!user) {
-    user = new User(to); // currently, the user is loaded, but if they do exist, they move along to user.save. Then that's it. What I want is for the handleTransfer event handler to
+    user = new User(to);
     nft = getNFT(event, user);
   } // checks if this is a mint() scenario
   else if (from == EMPTY_ADDRESS) {
     nft = createNFT(event, user);
-  } // checks if this is a merge() scenario
-  // I think we check if this is a merge. Recall that transfer(to==address(0)) happens when burn() is called, which is a weird scenario, and _transfer emits (to == address(0)) at the end of its tx logic, and deletes _owners[deadTokenId]. Somehow the txs I find on etherscan are actually calling burn(), which I'm still unsure of how but whatever. All mappins for the deadToken are 'deleted'
+  }
 
-  // OK, so the smart contract prevents users from having more than one NFT, except for address(0) and nifty gateway.
-  // SO that means we only get Transfer(to == address(0)) when burns or merges actually happen, and prior to this moment, NFT is temporarily sent to the merger account, but then redirected to address(0) soon after with another Transfer event.
-  else if (to == EMPTY_ADDRESS) {
+  // all other Transfer scenarios incl: temporary transfers right before merging/burning, simple burning (direct to dead address, which then transfers to address(0))
+  else {
     nft = getNFT(event, user);
-  } else {
-    nft = getNFT(event, user); // TODO: I think I could actually replace this last call with `nft.owner = user.id;` but for the sake of keeping the nft-related implementation code in a separate function, I have decided not to for now.
   }
 
   user.save();
 }
 
-// /**
-//  *
-//  * @param event
-//  * @param user
-//  * @returns
-//  */
-// export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
-//   let alphaTokenId = event.params.tokenId;
-//   let alphaMass = event.params.alphaMass;
+/**
+ * @notice updates when new alphaMass identified
+ * @param event AlphaMassUpdate
+ * @dev TODO: need to handle the old alphaMass still. So if one tokenId is alpha one day, but the next a different one is, they will both have the 'isAlpha' field as 'true'
+ */
+export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
+  let alphaTokenId = event.params.tokenId;
+  let alphaMass = event.params.alphaMass;
 
-//   // so basically, alpha updates only during mint() if tokenID != oldAlphaTokenID && during _merge().
+  let _alphaTokenId = alphaTokenId.toString();
+  let nft = NFT.load(_alphaTokenId) as NFT;
 
-//   // in the event of _merge(), there are a couple scenarios where this happens.
-//   // merge(): when _transfer() is called, the actual ownership is done in the same tx. This is a key thing to start getting used to for subgraphs. When an event happens, unless the params have something to do with the tx at that literal point in time, then as long as the relevant variables are updated within the same tx of the event being emitted, we will be good!
+  nft.massSize = alphaMass;
+  nft.isAlpha = true;
 
-//   // OK, I get the tokenId, then I call up load.nft(tokenId), and from there I update nft.isAlpha. The cool thing is that I won't have to check with the transferHandler() if tokens are alpha because this event takes care of it. If it did not take care of it, then I would have to figure out a way to compare what tokenId is the alpha and its associated values. I could do that through the generic entity for the collection. I don't have that set up yet though and since I have this event emission I'm good.
+  nft.save();
+}
 
-//   //within same tx, token owners and all that have been updated. Transfer() event will have been emitted.
-//   let _alphaTokenId = alphaTokenId.toString();
-//   let nft = NFT.load(_alphaTokenId);
+/**
+ * @notice
+ * @param event MassUpdate
+ * @dev TODO: fix decodeValues()
+ */
+export function handleMassUpdate(event: MassUpdate): void {
+  let tokenIdBurned = event.params.tokenIdBurned.toString();
+  let tokenIdPersist = event.params.tokenIdPersist.toString();
+  let combinedMass = event.params.mass.toString();
 
-//   // QUESTION for mint(): do subgraphs get the event data in the order that it happens within the smart contract logic? I ask this bc within mint() the Transfer() event happens before the AlphaMassUpdate() event. since it would be in the same tx, then I just want to know if I need to put logic here that checks if the nft exists or not. The only reason it wouldn't exist during mint() is if the Transfer() event didn't get digested first by the subgraph.
-//   // 1. Transfer() emitted, then AlphaMassUpdate() emitted.
+  let nftBurned = NFT.load(tokenIdBurned) as NFT;
+  let nftPersist = NFT.load(tokenIdPersist) as NFT;
+  let updatedValue = nftBurned.massSize.plus(nftPersist.massValue);
 
-//   // for _merge(): Transfer(from, to, tokenId) emitted, _merge() then called so AlphaMassUpdate(_alphaId, combinedMass) and MassUpdate(tokenIdSmall, tokenIdLarge, combinedMass) emitted, then Transfer(to, address(0), deadTokenId) emitted, then that's it.
-//   if (!nft) {
-//   }
-//   nft.massSize = alphaMass;
+  nftPersist.massValue = updatedValue;
+  nftBurned.mergedInto = tokenIdPersist;
 
-//   nft.isAlpha = true;
-// }
+  let _absorbedNFTs = nftPersist.absorbedNFTs;
+  _absorbedNFTs.push(tokenIdBurned);
+  nftPersist.absorbedNFTs = _absorbedNFTs;
+
+  let _timestampsPersist = nftPersist.timeStamp;
+  _timestampsPersist.push(event.block.timestamp);
+  nftPersist.timeStamp = _timestampsPersist;
+
+  // mergeCount, massSize, color, mergeClass of nftPersist
+  nftPersist.mergeCount++;
+  nftPersist.massSize = (updatedValue % CLASS_MULTIPLIER) as BigInt;
+  let _mergeClass: BigInt = updatedValue / CLASS_MULTIPLIER;
+  let mergeClass: string = checkMergeClass(_mergeClass);
+  nftPersist.mergeClass = mergeClass;
+  nftPersist.color = checkColor(mergeClass);
+
+  nftBurned.save();
+  nftPersist.save();
+
+  // TODO: when decodeValue() works, may have to tweak as I haven't looked at it in a bit.
+
+  // nftPersist.massSize = decodeValue(
+  //   updatedValue
+  // ).massSize;
+  // nftPersist.color = decodeValue(updatedValue).color;
+  // nftPersist.mergeClass = decodeValue(updatedValue).mergeClass;
+
+  // TODO: FYI: only other time MassUpdate happens is when _burnNoEmitTransfer happens, I realize now that I need to make sure this accounts for that, but I do not think I have seen the function called tbh in etherscan / don't understand when it would get called.
+}
 
 /* ========== GENERAL FUNCTIONS ========== */
 
 /**
  * @notice load NFT or call createNFT() for new NFT
  * @param event: Transfer from handleTransfer() caller
- * @returns
+ * @returns NFT with updated owner, or newly minted NFT entity
  */
 export function getNFT(event: Transfer, user: User): NFT {
   let tokenId = event.params.tokenId.toString();
@@ -175,22 +227,21 @@ export function createNFT(event: Transfer, user: User): NFT {
   let nftValue = contract.getValueOf(tokenId);
 
   // obtain nft fields throughs calculating off of encoded value
-  log.info("nft value: {}", [nftValue.toString()]);
-  log.info("class multiplier: {}", [CLASS_MULTIPLIER.toString()]);
+  if (nftValue >= NOT_WHITE_VALUE) {
+    log.info("nft value: {}", [nftValue.toString()]);
+  }
   nft.massValue = nftValue;
-  nft.massSize = (nftValue % CLASS_MULTIPLIER) as BigInt; //TODO: not sure why there are error lines. It builds fine.
+  nft.massSize = (nftValue % CLASS_MULTIPLIER) as BigInt;
   let fun: BigInt = nft.massSize as BigInt;
-  log.info("mass size: {}", [fun.toString()]);
-
-  let _mergeClass: BigInt = nftValue.div(CLASS_MULTIPLIER);
-
-  nft.mergeClass = checkMergeClass(_mergeClass);
-  log.info("merge class: {}", [nft.mergeClass as string]);
-
+  let _mergeClass: BigInt = nftValue / CLASS_MULTIPLIER;
   let mergeClass: string = checkMergeClass(_mergeClass);
-
+  nft.mergeClass = mergeClass;
   nft.color = checkColor(mergeClass);
 
+  nft.mergeCount = 0;
+
+  nft.absorbedNFTs.push("n/a");
+  nft.timeStamp.push(BigInt.fromI32(0));
   nft.save();
 
   return nft;
@@ -215,15 +266,3 @@ export function handleApprovalForAll(event: ApprovalForAll): void {}
  * @param event
  */
 export function handleConsecutiveTransfer(event: ConsecutiveTransfer): void {}
-
-/**
- * @notice
- * @param event
- */
-export function handleMassUpdate(event: MassUpdate): void {}
-
-/**
- * @notice
- * @param event
- */
-export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {}

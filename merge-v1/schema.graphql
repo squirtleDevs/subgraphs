@@ -42,17 +42,21 @@ type NFT @entity {
   "Current owner unless merged where it would be address(0)"
   owner: User!
   "Core metric: used for each NFT in smart contracts to get derived metrics"
-  massValue: BigInt
+  massValue: BigInt!
   "Derived metric: size of mass for a specific NFT"
-  massSize: BigInt #pak
+  massSize: BigInt! #pak
   "Derived metric: color of mass NFT; BLACK is Alpha"
-  color: Color #pak: class in smart contract specifies color where decodeClass(_values[tokenId]) is used in generating metadata (on-chain svg).
+  color: Color! #pak: class in smart contract specifies color where decodeClass(_values[tokenId]) is used in generating metadata (on-chain svg).
   "Derived metric: rarity for mass NFTs; higher numbers are highest rarity"
-  mergeClass: MergeClass #pak: in smart contracts, class is a uint
+  mergeClass: MergeClass! #pak: in smart contracts, class is a uint
   "Amount of times this tokenID has absorbed other NFTs"
-  mergeCount: BigInt #pak
-  "unix timestamps when merge txs occurred"
-  timeStamp: [BigInt!] #pak
+  mergeCount: Int! #pak
   "Whether the NFT is alpha or not"
   isAlpha: Boolean #pak
+  "What tokenId this NFT was merged into"
+  mergedInto: String #pak
+  "unix timestamps when merge txs occurred"
+  timeStamp: [BigInt!]! #pak
+  "Absorbed NFTs"
+  absorbedNFTs: [String!]! #pak
 }

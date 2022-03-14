@@ -1,15 +1,161 @@
 """
 These are typical queries that I think would be used to extract data for a front-end similar to: https://merge.tina.cafe/9
+
+In general, for the leaderboard query and onwards, I just had issues copying them in and troubleshooting through syntax issues. So they seemed to be invalid queries atm.
+"""
+
+############
+
+"2022-03-14_Update1Checks-NFTs"
+
+"""
+Showcases, in this order:
+1. mergeExample: where mass NFTs have been merged into token 23106, 2. burnedExample: where mass NFT has been merged/burned into another one, 3. noMergeExample: where nothing has happened, 4. currentAlpha, 5. yellowExample, 6. redExample, 7. blueExample
 """
 
 {
-  exampleEntities(first: 5) {
+  mergeExample: nft(id: "23106") {
     id
-    count
-    tokenId
-    alphaMass
+    merged
+    owner {
+      id
+    }
+    massValue
+    massSize
+    color
+    mergeClass
+    mergeCount
+    isAlpha
+    mergedInto
+    timeStamp
+    absorbedNFTs
+  }
+  burnedExample: nft(id: "17325") {
+    id
+    merged
+    owner {
+      id
+    }
+    massValue
+    massSize
+    color
+    mergeClass
+    mergeCount
+    isAlpha
+    mergedInto
+    timeStamp
+    absorbedNFTs
+  }
+  noMergeExample: nft(id: "7705") {
+    id
+    merged
+    owner {
+      id
+    }
+    massValue
+    massSize
+    color
+    mergeClass
+    mergeCount
+    isAlpha
+    mergedInto
+    timeStamp
+    absorbedNFTs
+  }
+  currentAlpha: nft(id: "1") {
+    id
+    merged
+    owner {
+      id
+    }
+    massValue
+    massSize
+    color
+    mergeClass
+    mergeCount
+    isAlpha
+    mergedInto
+    timeStamp
+    absorbedNFTs
+  }
+  yellowExample: nft(id: "70") {
+    id
+    merged
+    owner {
+      id
+    }
+    massValue
+    massSize
+    color
+    mergeClass
+    mergeCount
+    isAlpha
+    mergedInto
+    timeStamp
+    absorbedNFTs
+  }
+  redExample: nft(id: "2") {
+    id
+    merged
+    owner {
+      id
+    }
+    massValue
+    massSize
+    color
+    mergeClass
+    mergeCount
+    isAlpha
+    mergedInto
+    timeStamp
+    absorbedNFTs
+  }
+  blueExample: nft(id: "12") {
+    id
+    merged
+    owner {
+      id
+    }
+    massValue
+    massSize
+    color
+    mergeClass
+    mergeCount
+    isAlpha
+    mergedInto
+    timeStamp
+    absorbedNFTs
   }
 }
+
+###########
+
+"Query: 2022-03-14_#1_AddressZero&Nifty"
+
+"""
+Showcases address(0) and Nifty Gateway Omnibus User entities
+NOTE: not sure why NiftyGateway's tokenIds are all multiples of 10 or so it seems.
+TODO: whitelist is not a field that I update yet.
+"""
+{
+  AddressZero: user(id: "0x0000000000000000000000000000000000000000") {
+    id
+    massNFTs {
+      id
+    }
+    whitelist
+  }
+
+  NiftyGateway: user(id: "0xe052113bd7d7700d623414a0a4585bcae754e9d5") {
+    id
+    massNFTs {
+      id
+    }
+    whitelist
+  }
+}
+
+############
 
 """
 Simple Queries
@@ -18,16 +164,22 @@ Simple Queries
   NFT(first: 5) {
     id
     merged
-    owner
+    owner {
+      id
+    }
+    massValue
     massSize
     color
-    massClass
+    mergeClass
     mergeCount
+    isAlpha
+    mergedInto
+    timeStamp
+    absorbedNFTs
   }
 }
 
-
-## When I have iteratively gone through creating the subgraph
+#############
 
 """
 Leaderboard Query: pulling information for mass leaderboard based off of value or massCount usually
@@ -36,16 +188,23 @@ Leaderboard Query: pulling information for mass leaderboard based off of value o
   nfts(first: 100, orderBy: massSize, orderDirection: desc, where: { merged_not(true)}) {T
     id
     merged
-    owner
+    owner {
+      id
+    }
+    massValue
     massSize
     color
     mergeClass
     mergeCount
+    isAlpha
+    mergedInto
+    timeStamp
+    absorbedNFTs
   }
 }
 
 """
-User Query: check to see what NFT a user has, and its details... TODO: when the front-end (hypothetical) queries for user data for an person's connected HD wallet (and thus public address)... does their front end take that and input it as an input parameter into a graphQL query to the subgraph?
+User Query: check to see what NFT a user has, and its details... TODO: when the front-end (hypothetical) queries for user data for a person's connected HD wallet (and thus public address)... does their front end take that and input it as an input parameter into a graphQL query to the subgraph? **DK and I talked about this and it is do-able. To be done later.
 """
 {
   User(id: <userAddressAsHexString>) {
