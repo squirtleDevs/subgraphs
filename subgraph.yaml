@@ -23,6 +23,9 @@ dataSources:
       abis:
         - name: Merge
           file: ./abis/Merge.json
+      callHandlers:
+        - function: whitelistUpdate(address,bool)
+          handler: handleWhitelistUpdate
       eventHandlers:
         - event: AlphaMassUpdate(indexed uint256,uint256)
           handler: handleAlphaMassUpdate
@@ -37,6 +40,3 @@ dataSources:
         - event: Transfer(indexed address,indexed address,indexed uint256)
           handler: handleTransfer
       file: ./src/mapping.ts
-      # callHandlers:
-      #  - function: createGravatar(string,string)
-      #    handler: handleCreateGravatar

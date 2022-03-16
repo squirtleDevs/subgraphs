@@ -88,6 +88,57 @@ From glancing through OpenSea and the merge contracts:
 - [x] run `yarn codegen` since you changed the schema
 - [x] Comment out the code and run iterative subgraph deployments, test query them too.
 - [/] Submit PR with finished subgraph draft for minting function for `merge.sol`
+  - [ ] Make sure it works with specific queries. Show that you understand what kind of queries would be good.
+    - [ ] specificNFTQuery: you look up an nft, you see its details. These need to reflect the current collection's status.
+      - [ ] In order for that to happen: w/o past data... we just won't be able to see what mass NFTs have been merged. --> I'm going to try and see one test to see if I can get the boolean to show for merged. If that doesn't work, I can use the massUpdate event handler later to get the nft.merged field updated.
+      - [ ] Show this with a merged NFTquery.
+    - [ ] specificUserQuery: you look up a user, you see their details.
+
+# 🚨🚨😎 Merge Subgraph Goals and Task Breakdowns
+
+Deadlines are the internal ones I've laid out.
+
+## [ ] Update 1 - Equivalent to a front end that would show live data of who owns what:
+
+- Definition IMO: shows nfts reflecting status as per the merge contract (game). Handles scenarios of: transfering from one account to another (merge), from calling burn() which is a weird thing but somehow it happens [TODO: something I'm confused by in the smart contracts tbh], transfers within Nifty Gateway (whitelisted) and merges in their UI, mint() from whitelisted during minting time period.
+
+  - [x] Get merged boolean field to update, and owner: id{} to update to address(0) when burnt (merged).
+  - [x] Fix mergeClass. It is not changing the class as I want it to. Write logs for it.
+    - Check logs. Go from there.
+  - [x] Need to increment mergeCount, as I make MassUpdateEventHandler() and AlphaMassEventHandler()
+    - [x] Test deploy it!
+  - [x] Need to get timeStamp somehow for when merges happens. Maybe txHash and its timestamp, then convert it to UNIX somehow?
+  - [x] Need to get whether or not the NFT isAlpha or not.
+    - [x] Do the above by focusing on one at a time. Writing the implementation code, deploying the subgraph, seeing if it works. Make logs for it too as you get any errors to troubleshoot.]
+
+### Query tests:
+
+- [x] NFT specific query,
+
+  - Token 7705: showing my own NFT [not-merged, class-one] // etherscan:
+  - Token 385: recently merged, and burnt. // etherscan:
+  - Token 1: Alpha // etherscan:
+  - Token ??: RED // etherscan:
+  - Token ??: YELLOW // etherscan:
+  - Token ??: BLUE // etherscan:
+
+- [/] NFT all entities (why is it showing tokenIDs in the 10s, 100s?)
+- [/] All user entities
+- [/] Top 100 mass entities
+- [/] Top 100 mass entities, taking into account class.
+- [/] Nifty Gateway address (omnibus that is whitelisted) to see how it has an array of tokenIDs (massNFTs)
+- [/] Non-Whitelist examples showing how they only have one NFT associated to their name. Specifically key on an address that has a merge happen with them, and how the smartcontract and the subgraph keep track of this.
+- [/] Address(0) and how it has a bunch of NFTs, all of which have merge boolean set to True.
+
+## [ ] Update 2 - Make sure all metadata is being read // DUE: Tuesday or Wednesday this week
+
+Shows pertinent metadata for OpenSea and other marketplaces.
+
+- [ ] Outline how OpenSea likes to obtain its information, pretty sure it is just a JSON file from a URI. BUT, it is different with on-chain SVG art. Check out how marketplaces deal with that. merge smartcontracts produce a JSON I think that these marketplaces can get the info they need from. So if our subgraph produces the JSON and/or URI within a field for the respective NFT, then that would be good. Right now, they can't do that, all they get is the metadata fields. So I would need to produce the image link, or something. As well, the metadata.sol file that merge inherits does contain all the metadata for certain NFTs. I don't think it emits events though, so I would have to bind to it to get the trait data. The way I go about it now is better. The thing is... what about the image? Can Opensea work with subgraphs also?
+
+      [ ] Update 3 - Totals and counts // DUE: THURSDAY this week
+      [ ] Update 4 - Historical data of who owned every nft // DUE: FRIDAY
+      [ ] Update 5 - Prices in USD and ETH or all trades // DUE: FRIDAY
 
 ### Update as per discussion with DK - March 10th, 2022
 

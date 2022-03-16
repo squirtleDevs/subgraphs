@@ -1,0 +1,4 @@
+{
+  "extends": "@graphprotocol/graph-ts/types/tsconfig.base.json",
+  "include": ["src", "../wip/mapping copy.ts", "../wip/mapping-uncommented.ts"]
+}

@@ -16,114 +16,107 @@ Showcases, in this order:
 {
   mergeExample: nft(id: "23106") {
     id
-    merged
     owner {
       id
     }
     massValue
     massSize
     color
-    mergeClass
+    tier
     mergeCount
     isAlpha
     mergedInto
-    timeStamp
+    mergeTimes
     absorbedNFTs
   }
   burnedExample: nft(id: "17325") {
     id
-    merged
     owner {
       id
     }
     massValue
     massSize
     color
-    mergeClass
+    tier
     mergeCount
     isAlpha
     mergedInto
-    timeStamp
+    mergeTimes
     absorbedNFTs
   }
   noMergeExample: nft(id: "7705") {
     id
-    merged
     owner {
       id
     }
     massValue
     massSize
     color
-    mergeClass
+    tier
     mergeCount
     isAlpha
     mergedInto
-    timeStamp
+    mergeTimes
     absorbedNFTs
   }
   currentAlpha: nft(id: "1") {
     id
-    merged
     owner {
       id
     }
     massValue
     massSize
     color
-    mergeClass
+    tier
     mergeCount
     isAlpha
     mergedInto
-    timeStamp
+    mergeTimes
     absorbedNFTs
   }
   yellowExample: nft(id: "70") {
     id
-    merged
     owner {
       id
     }
     massValue
     massSize
     color
-    mergeClass
+    tier
     mergeCount
     isAlpha
     mergedInto
-    timeStamp
+    mergeTimes
     absorbedNFTs
   }
   redExample: nft(id: "2") {
     id
-    merged
     owner {
       id
     }
     massValue
     massSize
     color
-    mergeClass
+    tier
     mergeCount
     isAlpha
     mergedInto
-    timeStamp
+    mergeTimes
     absorbedNFTs
   }
   blueExample: nft(id: "12") {
     id
-    merged
     owner {
       id
     }
     massValue
     massSize
     color
-    mergeClass
+    tier
     mergeCount
     isAlpha
     mergedInto
-    timeStamp
+    mergeTimes
     absorbedNFTs
   }
 }
@@ -140,7 +133,7 @@ TODO: whitelist is not a field that I update yet.
 {
   AddressZero: user(id: "0x0000000000000000000000000000000000000000") {
     id
-    massNFTs {
+    mergeNFTs {
       id
     }
     whitelist
@@ -148,7 +141,7 @@ TODO: whitelist is not a field that I update yet.
 
   NiftyGateway: user(id: "0xe052113bd7d7700d623414a0a4585bcae754e9d5") {
     id
-    massNFTs {
+    mergeNFTs {
       id
     }
     whitelist
@@ -163,18 +156,17 @@ Simple Queries
 {
   NFT(first: 5) {
     id
-    merged
     owner {
       id
     }
     massValue
     massSize
     color
-    mergeClass
+    tier
     mergeCount
     isAlpha
     mergedInto
-    timeStamp
+    mergeTimes
     absorbedNFTs
   }
 }
@@ -187,18 +179,17 @@ Leaderboard Query: pulling information for mass leaderboard based off of value o
 {
   nfts(first: 100, orderBy: massSize, orderDirection: desc, where: { merged_not(true)}) {T
     id
-    merged
     owner {
       id
     }
     massValue
     massSize
     color
-    mergeClass
+    tier
     mergeCount
     isAlpha
     mergedInto
-    timeStamp
+    mergeTimes
     absorbedNFTs
   }
 }
@@ -209,7 +200,7 @@ User Query: check to see what NFT a user has, and its details... TODO: when the 
 {
   User(id: <userAddressAsHexString>) {
     id
-    massNFTs #Don't know if we need to specify more, of I guess that's the great thing, the front end can just poke deeper into the NFT dataset?
+    mergeNFTs #Don't know if we need to specify more, of I guess that's the great thing, the front end can just poke deeper into the NFT dataset?
     whitelist
   }
 }
@@ -218,9 +209,9 @@ User Query: check to see what NFT a user has, and its details... TODO: when the 
 User Query Option 2: if the above doesn't work, I guess the front-end (hypothetical) just queries for all the Users that have populated entities. In that case, they would just query everything at the current block and use that data in their own database?
 """
 {
-  User(first: 100, orderBy: massNFTs.massSize, orderDirection: desc, where: { massNFTs.merged_not(true)}){
+  User(first: 100, orderBy: mergeNFTs.massSize, orderDirection: desc, where: { mergeNFTs.merged_not(true)}){
     id
-    massNFTs #Don't know if we need to specify more, of I guess that's the great thing, the front end can just poke deeper into the NFT dataset?
+    mergeNFTs #Don't know if we need to specify more, of I guess that's the great thing, the front end can just poke deeper into the NFT dataset?
     whitelist
   }
 }
