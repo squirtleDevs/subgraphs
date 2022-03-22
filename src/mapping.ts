@@ -239,9 +239,6 @@ export function createNFT(event: Transfer, userId: string): NFT {
 
   nft.mergeCount = 0;
 
-  nft.absorbedNFTs.push("n/a");
-  nft.mergeTimes.push(0);
-
   return nft;
 }
 
