@@ -70,6 +70,116 @@ From glancing through OpenSea and the merge contracts:
   - [ ] Update subgraph and test with queries. Do this for one 'chunk' of the data entities, and then once you're good with that do it for the rest // est: 1 hr
 - [ ] Review with DK to see what parts could be improved. Do through PRs on github.
 
+- [ ] Finish basic entity subgraphs in mapping:
+
+### Handling User and NFT entities for mint() scenario
+
+- [x] Add in whitelist for user entity
+- [x] `User.whitelist` field will be handled with a call handler (when pak calls it). Have it be set as default `false`. Although NOTE that it should actually be `true` for the NG omnibus and other NG addresses. This would be captured with a callHandler() on `whitelistUpdate()`
+- [x] Change `NFTs` entity to NFT
+- [x] Move `NFT` updates to `createNFT()` instead of `handleTransfer()`. Do this by passing `event` type through to the callee function `createNFT()`
+- [x] Make sure to save newly created entities or updated ones.
+- [x] Clean up architecture to consider `getNFT()` vs `createNFT()`
+- [x] Clean up the comments within the mapping file
+
+- [x] Submit in-progress PR that is showing typescript errors.
+- [x] Sort out plan for what parts to comment out and how to query them. Write out how you would query them. At least for the data you have so far.
+- [x] Fix small bug that Dave found causing the compile error: field `class`, change it to `mergeClass`
+- [x] run `yarn codegen` since you changed the schema
+- [x] Comment out the code and run iterative subgraph deployments, test query them too.
+- [/] Submit PR with finished subgraph draft for minting function for `merge.sol`
+  - [ ] Make sure it works with specific queries. Show that you understand what kind of queries would be good.
+    - [ ] specificNFTQuery: you look up an nft, you see its details. These need to reflect the current collection's status.
+      - [ ] In order for that to happen: w/o past data... we just won't be able to see what mass NFTs have been merged. --> I'm going to try and see one test to see if I can get the boolean to show for merged. If that doesn't work, I can use the massUpdate event handler later to get the nft.merged field updated.
+      - [ ] Show this with a merged NFTquery.
+    - [ ] specificUserQuery: you look up a user, you see their details.
+
+# 🚨🚨😎 Merge Subgraph Goals and Task Breakdowns
+
+Deadlines are the internal ones I've laid out.
+
+## [ ] Update 1 - Equivalent to a front end that would show live data of who owns what:
+
+- Definition IMO: shows nfts reflecting status as per the merge contract (game). Handles scenarios of: transfering from one account to another (merge), from calling burn() which is a weird thing but somehow it happens [TODO: something I'm confused by in the smart contracts tbh], transfers within Nifty Gateway (whitelisted) and merges in their UI, mint() from whitelisted during minting time period.
+
+  - [x] Get merged boolean field to update, and owner: id{} to update to address(0) when burnt (merged).
+  - [x] Fix mergeClass. It is not changing the class as I want it to. Write logs for it.
+    - Check logs. Go from there.
+  - [x] Need to increment mergeCount, as I make MassUpdateEventHandler() and AlphaMassEventHandler()
+    - [x] Test deploy it!
+  - [x] Need to get timeStamp somehow for when merges happens. Maybe txHash and its timestamp, then convert it to UNIX somehow?
+  - [x] Need to get whether or not the NFT isAlpha or not.
+    - [x] Do the above by focusing on one at a time. Writing the implementation code, deploying the subgraph, seeing if it works. Make logs for it too as you get any errors to troubleshoot.]
+
+### Query tests:
+
+- [x] NFT specific query,
+
+  - Token 7705: showing my own NFT [not-merged, class-one] // etherscan:
+  - Token 385: recently merged, and burnt. // etherscan:
+  - Token 1: Alpha // etherscan:
+  - Token ??: RED // etherscan:
+  - Token ??: YELLOW // etherscan:
+  - Token ??: BLUE // etherscan:
+
+- [/] NFT all entities (why is it showing tokenIDs in the 10s, 100s?)
+- [/] All user entities
+- [/] Top 100 mass entities
+- [/] Top 100 mass entities, taking into account class.
+- [/] Nifty Gateway address (omnibus that is whitelisted) to see how it has an array of tokenIDs (massNFTs)
+- [/] Non-Whitelist examples showing how they only have one NFT associated to their name. Specifically key on an address that has a merge happen with them, and how the smartcontract and the subgraph keep track of this.
+- [/] Address(0) and how it has a bunch of NFTs, all of which have merge boolean set to True.
+
+## [ ] Update 2 - Make sure all metadata is being read // DUE: Tuesday or Wednesday this week
+
+Shows pertinent metadata for OpenSea and other marketplaces.
+
+- [ ] Outline how OpenSea likes to obtain its information, pretty sure it is just a JSON file from a URI. BUT, it is different with on-chain SVG art. Check out how marketplaces deal with that. merge smartcontracts produce a JSON I think that these marketplaces can get the info they need from. So if our subgraph produces the JSON and/or URI within a field for the respective NFT, then that would be good. Right now, they can't do that, all they get is the metadata fields. So I would need to produce the image link, or something. As well, the metadata.sol file that merge inherits does contain all the metadata for certain NFTs. I don't think it emits events though, so I would have to bind to it to get the trait data. The way I go about it now is better. The thing is... what about the image? Can Opensea work with subgraphs also?
+
+      [ ] Update 3 - Totals and counts // DUE: THURSDAY this week
+      [ ] Update 4 - Historical data of who owned every nft // DUE: FRIDAY
+      [ ] Update 5 - Prices in USD and ETH or all trades // DUE: FRIDAY
+
+### Update as per discussion with DK - March 10th, 2022
+
+Had a good half hour review with DK on the subgraph so far. This particular subgraph emits Transfer events probably the most out of the other event emissions throughout time. As such, carrying out contract calls can be very intensive when it comes to having the subgraph sync fully with the ethereum mainnet network.
+
+Contract calling means that the subgraph is literally calling an ethereum node for information directly from the smart contract records. Although this is completely okay to do, it increase the syncing time substantially. This is not the best practice because iterative subgraph design and development requires constant tweaking and redployment in terms of the mapping and other subgraph files.
+
+Therefore the following tasks will be done to design this subgraph in a faster syncing way, that ultimately will save time in development since I will not have to wait 2 hours+ to sync the subgraph to the mainnet network everytime I redeploy it with an upgrade.
+
+- [ ] Extract the value data of each nft token when they are newly minted. Do this via connecting to the contract. This will bhe the only time hopefully that I connect to the contract (vs right now I currently have 4-5 times in my code that I call the contract). This should quicken the syncing by 3-5x.
+- [ ] Use the value data and write out implementation code that decodes the mass, class, and whatever else information that may be available through obtaining the value of each token.
+- [ ] Write the mapping so that it also sorts out which class will be merged when that edge case happens (a yellow being merged into a black for example).
+- [ ] Once the subgraph is updated to sync much faster using these \_value details, then I can submit my PR.
+
+Cool lessons learnt:
+
+- Note about syncing
+- ENUMs are good, even in my case of this subgraph, as where I use it, there really are only so many options. You would use a uint if you had boundless options.
+- pure functions in solidity mean that no matter what, the return value will always be the same. Think of an example where your return value is the product of some input param and the block.timestamp. That would always change. That would not fall under a pure function.
+  - the pure functions in the merge smart contract signal that we can actually feel confident in building out the logic in the subgraph for that respective function!
+
+### After submitting PR
+
+- [ ] Add a whitelist call handler
+- [ ] Work through next scenario of transfer event handling.
+- [x] Add a unix timestamp array field so front-end can easily grab the times that merge txs occurred.
+- [ ] Add the following to the schema for NFT:
+
+```
+  # "tx hash - TODO: I think I did this wrong just gotta look it up"
+  # blockHash: [Bytes] #pak
+```
+
+########
+
+- [ ] Review the code and highlight questions to go over with Dave
+- [ ] Try compiling it
+- [/] Add in note about how if someone purchased another mass during the minting phase... then a merge may have happened but that's backend stuff too with Nifty Gateway... confusing.
+
+- [ ] You can only use event handlers once. So... when an NFT is transferred, we need to take all scenarios into account.
+
 ---
 
 ### 🔎 Perspective of Subgraph
@@ -115,3 +225,6 @@ _`mapping.ts` task related:_
 7. Need to understand IDs more within subgraphs. When thinking about it for Sales, I see that `to` and `from` fields are `Bytes` whereas in the lending-standard-subgraph base schema, `id: ID` is used for `type Account`
 8. Perhaps I just need to look at more subgraphs with fresh eyes, but when you use derivation, like in `sale: [Sales!]! @derivedFrom(filed: tokenID)`, if you wanted to obtain a specific field within the `Sales` database, how would you go about it? To me, right now we would just get the `id` field from `Sales` entity.
 9. \*Redundancy: when making a schema, is it OK to have the same details as fields within two different entities? Ex.) The `User` vs `NFTs` entities; where there exists the same fields outlining pertinent details for each NFT. Would it be better to only instantiate a datafield once within one entity?
+10. Regarding the function architecture I have within the mapping file for `merge.sol` revolving around `handleTransfer()` and `loadNFT()`
+    Call loadNFT(), which has createNFT() within it in a similar if/else setup as this.
+    If this is a new User entity, then it should not have any nfts within it. Therefore we just need to call loadNFT() which handles just loading up and returning an NFT appropriately. Hmm. but I think we should actually have the conditional logic checking if there is an NFT entity like that in existence. The reason is that we do not know if this is a new whitelisted address or something that could be receiving a transfer() of a pre-existing NFT. The counter to this thought is that the function becomes more complicated.

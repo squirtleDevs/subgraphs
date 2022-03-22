@@ -1,0 +1,60 @@
+"""
+Color of NFT from least rare to rarest
+"""
+enum Color {
+  WHITE #tier/class - 1
+  YELLOW #tier/class - 2
+  BLUE #tier/class - 3
+  RED #tier/class - 4
+  BLACK #tier/class - 4
+}
+
+"""
+Tier of NFT from least rare to rarest that corresponds to Color.
+"""
+enum Tier {
+  ONE
+  TWO
+  THREE
+  FOUR
+}
+
+"""
+An account of users holding an NFT within 'merge.' collection.
+"""
+type User @entity {
+  "Unique address of a merge NFT owner"
+  id: ID!
+  "Details about NFTs being held by this User"
+  mergeNFTs: [NFT!] @derivedFrom(field: "owner")
+  "Whether this User can carry more than one merge NFT"
+  whitelist: Boolean! #These are central marketplaces typically like Nifty Gateway
+}
+
+"""
+Individual NFTs within this collection.
+"""
+type NFT @entity {
+  "Unique tokenID"
+  id: ID!
+  "Current owner unless merged where it would be address(0)"
+  owner: User!
+  "NFT-Specific value representing tier and mass"
+  value: BigInt! # Core metric: used to get derived metrics in smart contracts
+  "Size of mass for a specific NFT"
+  mass: BigInt! # derived from value
+  "Color of mass NFT; BLACK is Alpha"
+  color: Color! # derived from value
+  "Rarity for mass NFTs; higher numbers are highest rarity"
+  tier: Tier! # derived from value
+  "Amount of times this tokenID has absorbed other NFTs"
+  mergeCount: Int!
+  "Whether the NFT is alpha or not"
+  isAlpha: Boolean
+  "What tokenId this NFT was merged into"
+  mergedInto: NFT
+  "unix timestamps when merge txs occurred"
+  mergeTimes: [Int!]!
+  "Absorbed NFTs"
+  absorbedNFTs: [NFT!]!
+}
