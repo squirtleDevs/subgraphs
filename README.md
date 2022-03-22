@@ -134,11 +134,116 @@ Deadlines are the internal ones I've laid out.
 
 Shows pertinent metadata for OpenSea and other marketplaces.
 
-- [ ] Outline how OpenSea likes to obtain its information, pretty sure it is just a JSON file from a URI. BUT, it is different with on-chain SVG art. Check out how marketplaces deal with that. merge smartcontracts produce a JSON I think that these marketplaces can get the info they need from. So if our subgraph produces the JSON and/or URI within a field for the respective NFT, then that would be good. Right now, they can't do that, all they get is the metadata fields. So I would need to produce the image link, or something. As well, the metadata.sol file that merge inherits does contain all the metadata for certain NFTs. I don't think it emits events though, so I would have to bind to it to get the trait data. The way I go about it now is better. The thing is... what about the image? Can Opensea work with subgraphs also?
+- [x] Outline how OpenSea likes to obtain its information, pretty sure it is just a JSON file from a URI. BUT, it is different with on-chain SVG art. Check out how marketplaces deal with that. merge smartcontracts produce a JSON I think that these marketplaces can get the info they need from. So if our subgraph produces the JSON and/or URI within a field for the respective NFT, then that would be good. Right now, they can't do that, all they get is the metadata fields. So I would need to produce the image link, or something. As well, the metadata.sol file that merge inherits does contain all the metadata for certain NFTs. I don't think it emits events though, so I would have to bind to it to get the trait data. The way I go about it now is better. The thing is... what about the image? Can Opensea work with subgraphs also?
+- [x] Write out notes on how to implement code. Pause for now until other updates are done as per discussion with DK on March 17.
 
-      [ ] Update 3 - Totals and counts // DUE: THURSDAY this week
-      [ ] Update 4 - Historical data of who owned every nft // DUE: FRIDAY
-      [ ] Update 5 - Prices in USD and ETH or all trades // DUE: FRIDAY
+## [ ] Update 3 - Totals and counts // DUE: THURSDAY this week
+
+\*Recent assumptions:
+
+- pak or NG passed array of values where the values were for each tokenId and included sorted values for the top 100 mass NFTs at that point in time. As per discussions with DK and investigating the smart contracts and talking with the urn and manifold discord servers, there is reason to believe that they didn't do alternatives such as:
+  - use index-listed arrays. Something along the lines of having the ability to **efficiently** edit elements of the array where an element has two connected endpoints (the prior element and the one after).
+- Colors are dicated by the value of a tokenId. That color is passed to the private function \_getSvg. There is no way for color to reoriented based on a mass breaking into the leaderboard (top 100 biggest masses). This seems to be valid hypothesis since there are white mass NFTs within the top 100, not just colors (yellow, red, blue, black).
+
+> These assumptions don't really change anything for me. mergeNFTs change class, and their resultant colors change when merges happen. So that's all good! This assumption makes it so that these new aspects are all held at the constructor of the project.
+
+- [ ] Collection totals
+
+  - Update schema with these fields
+  - Update mapping and iteratively deploy subgraph with them
+
+  **Need to think about the design of the code**
+  updateCollectionTotals(): Use a separate function and pass in parameters to get a return value for the collection, or save the collection within the function itself.
+
+  > Good to see what others do, save the entity within a separate function or within the original function (eventHandler).
+
+  - One can't send to address(0), they have to send to address(dead).
+  - Otherwise burn() can be used to send an NFT to address(0). Transfer event is emitted where to = address(0). So burns act the same way as burns within \_transfer(). This is the only way to just archaically burn it.
+    Cool, so I'll pass param to.address as a hexstring, and have IF statements within the updateCollectionTotals() looking for whether it is address(0) or not. If it is, then burn and decrement and increment certain things accordingly. If it isn't, then allow it to increment accordingly. Will have to check from.address too to make sure it is a mint. If it's two addresses, then increments do not change because the Transfer(address(0)) takes care of that.
+  - MassUpdates trigger if we increase mergeCount.
+  - tierUpdates happen when: minting, merging, burning. They work by knowing what tokenId was used and getting its tokenId and its subsequent metrics, and then updating them. We can update them when using TransferHandler. --> There are already conditions checking to & from addresses so I can use that and then have it determine what params to send.
+
+  - [x] Write implementation code first, then mark lines to comment out with // NEW
+  - [x] total mergeNFTs in existence
+    - [x] count `noMergeBurns`
+    - [ ] Address edge case of if there are no NFTs in Nifty Gateway ownership.
+  - [x] original amount of mergeNFTs in the beginning (before merges began to happen)
+  - [x] tier totals (yellow, blue, red, white, black)
+    - NOTE: black is accounted for by knowing there is only one Alpha
+  - [x] # of current owners --> # of tokenIds that are within whitelisted Addresses (Nifty Gateway OMNIBUS) will indicate how many owners there are
+  - [x] # of merges that have occurred
+  - [x] # of random anarchic burns that occurred (burn, no merge)
+  - [x] Save a separate version for your own development of mapping, and then save a cleaner copy for PR Review.
+
+## March 22 TODO
+
+- [x] Finally have all PR3 changes in a new feature branch ready to be worked on.
+
+  - [x] Review and fix any PR3 changes besides unit changes - 1.25 hr
+  - [ ] Go through schema and pick out what should be an int and what should be a BigInt.
+    - IMO, Ints should be the default if I can get it so that our mapping can work with it accordingly. The only time we go with BigInt is:
+      - when I am dealing with values that >> 2^53
+      - I think that's really it. Client-side can make my values BigInts if they want.
+        **THUS `value` that is obtained from the blockchain is BigInt, and then converted to Int**
+        > I will do this after working on making sure the implementation code for Update 3 makes sense. I don't want to do too many things in one commit.
+    -
+  - [ ] Go through mapping and fix in accordance to proper units wrt to schema
+  - [ ] yarn codegen
+  - [ ] fix as needed
+  - [ ] deploy and assess results
+  - [ ] fix as needed
+  - [ ] Prepare PR3 for review:
+    - clean up:
+      - .gitignore
+      - extra wip (take it out altogether)
+      - remove the README.md too, it is too messy atm.
+  - Submit PR3
+
+- [ ] Finalize your numbers by double checking with etherscan, or some other trustworthy source (perhaps Nifty Gateway, or the merge front-ends)
+
+## [ ] Update 4 - Historical data of who owned every nft // DUE: FRIDAY
+
+Types of historical data that ppl may want:
+
+- Maybe the leaderboard ranking at a certain point in time (I think ppl would just query that specifically specifying block timestamp or block number in their query).
+- Who owned what NFT, and when? --> put it in an array and push elements to it where each element is a previous owner of that NFT.
+  - This captures all transfer data essentially (now offering tx history for nft for frontend)
+- Could add the mass value of the merge NFTs it absorbed BUT it is redeundant through the fact that clients can just get the mass Size of a prior abrorbed nft through the NFT fields itself for the aborbed token.
+- What the NFT merged into, and when --> DONE
+- What the NFT absorbed, and when --> DONE
+- Sales (To be done in Update 5): when the NFT was sold, for how much, by who, to who, eth transaction hash of sale(s), on what platform. Client side would query by asking for a specific tokenId and all of its associated sales. You get this in the Sales entity.
+
+## [ ] Update 5 - Prices in USD and ETH or all trades // DUE: FRIDAY
+
+- If it is purchased with ether, the event Transfer will have msg.value attached to it <-- This is a good opportunity to ensure I understand what I can get out of the txs (at least a sample).
+- If it is purchased with an erc20, I will likely have to have implemented marketplace datasources, of which I can add to (if new marketplaces spring up). These new datasources will allow me to handle events from OpenSea, LooksRare, etc. to get the actual token addresses of the erc20s and the amounts.
+- That is enough for DK right now.
+
+  > Don't worry about Nifty Gateway purchases as they have their own backend and essentially act in similar ways to Binance, being a rapid fast trading platform.
+
+- [ ] Set up datasource (opensea for now) where you track events emitted for the merge collection specifically.
+- [ ] Events emitted:
+
+  - Transfer() is typically emitted with an erc20 token. OpenSea has their own basic ERC20 abstract contract acting as an interface. So the pay-token defined for the sale will have its own implementation code that will at the very least satisfy the method signature from the abstract contract here.
+    - If we went this way...
+  - `OrdersMatched()` is the only Opensea event emitted in the logs upon sale of an NFT. As per : https://etherscan.io/tx/0xa8d8e306a8c24c6922ff141d74dbe909c97c8ad3e614100b9ca8ed5a9b61e0f4#eventlog
+
+    - It doesn't include the token address though so I only have the amount of whatever erc20 token was used.
+    - I spent a good deal of time (3-4 hours) looking through the code to see if this information was emitted elsewhere. It is emitted in `OrderApprovedPartTwo()` event but this does not mean that this particular order has been fulfilled (when the approved event is emitted, it just means it's been approved).
+    - Then I checked through the conditional logic a bit more and still could not piece together how I would get the tokenAddress.
+      - Perhaps one lead is `... cancelledOrFinalized[buyHash] = true;` where I could get the approved `Orders` from `OrderApprovedPartTwo()` event emissions, and use `... cancelledOrFinalized[buyHash] = true;` to sort through finalized hashes... so it would check if it was `cancelledOrFinalized[]` and also check that the buyer or seller is involved with the respective `OrdersMatched` event emission.
+
+  - **I am also confused if we can access the tx details or not. I do not think we can though. Sure, params can be accessed, but in general I think that one cannot just get all tx details that were part of an event, or call that is being handled.**
+
+  - For context:
+    - `atomicMatch()` is a public function that I believe is called as one does a sale (or at least is affiliated with sales). - From there, `uint price = executeFundsTransfer(buy, sell);` is implemented. - `executeFundsTransfer()` ends up calling `transferTokens()` - `transferTokens()` is an internal function that calls `require(tokenTransferProxy.transferFrom(token, from, to, amount));` effectively calling `return ERC20(token).transferFrom(from, to, amount);`
+      SO, since a Transfer() Event is emitted
+
+> Ended up writing some summary notes above for Update 5 work... and asked questions on "The Graph, Buidl Guidl, Opensea, and to Cosmo" about this.
+
+## [ ] Nice to Have
+
+- [ ] Change BigInts to Ints where I can to speed up syncing even a bit.
 
 ### Update as per discussion with DK - March 10th, 2022
 

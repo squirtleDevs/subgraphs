@@ -40,13 +40,13 @@ type NFT @entity {
   "Current owner unless merged where it would be address(0)"
   owner: User!
   "NFT-Specific value representing tier and mass"
-  value: BigInt! # Core metric: used to get derived metrics in smart contracts
+  value: BigInt!
   "Size of mass for a specific NFT"
-  mass: BigInt! # derived from value
+  mass: BigInt!
   "Color of mass NFT; BLACK is Alpha"
-  color: Color! # derived from value
+  color: Color!
   "Rarity for mass NFTs; higher numbers are highest rarity"
-  tier: Tier! # derived from value
+  tier: Tier!
   "Amount of times this tokenID has absorbed other NFTs"
   mergeCount: Int!
   "Whether the NFT is alpha or not"
@@ -57,4 +57,40 @@ type NFT @entity {
   mergeTimes: [Int!]!
   "Absorbed NFTs"
   absorbedNFTs: [NFT!]!
+}
+
+"""
+The NFT collection, merge., and inherent global details on it.
+"""
+type Collection @entity {
+  "NFT external contract address"
+  id: ID!
+  "Name of NFT collection"
+  name: String!
+  "Total Mass in beginning"
+  originalMass: BigInt!
+  "ERC token standard used in this collection"
+  tokenStandard: String!
+  "TokenID of alpha mass"
+  alphaTokenId: NFT
+  "Initial total minted individual mergeNFTs"
+  initialNFTTotal: Int
+  "Current amount of individual mergeNFTs existing"
+  mergeNFTsATM: Int
+  "Number of Merges that have occurred"
+  totalMerges: Int
+  "Number of archaic non-merge burns"
+  totalBurns: Int
+  "Total mass in the collection"
+  totalMass: Int
+  "Total tier-1 (least rare tier) WHITE NFTs"
+  tier1Totals: Int
+  "Total tier-2 (4th rare tier) YELLOW NFTs"
+  tier2Totals: Int
+  "Total tier-3 (3rd rare tier) BLUE NFTs"
+  tier3Totals: Int
+  "Total tier-4 (2nd rare tier) RED NFTs"
+  tier4Totals: Int
+  "Number of current unique addresses holding these NFTs"
+  totalUniqueOwnerAddresses: Int
 }
