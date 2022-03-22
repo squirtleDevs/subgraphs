@@ -40,9 +40,9 @@ type NFT @entity {
   "Current owner unless merged where it would be address(0)"
   owner: User!
   "NFT-Specific value representing tier and mass"
-  massValue: BigInt! # Core metric: used to get derived metrics in smart contracts
+  value: BigInt! # Core metric: used to get derived metrics in smart contracts
   "Size of mass for a specific NFT"
-  massSize: BigInt! # derived from value
+  mass: BigInt! # derived from value
   "Color of mass NFT; BLACK is Alpha"
   color: Color! # derived from value
   "Rarity for mass NFTs; higher numbers are highest rarity"

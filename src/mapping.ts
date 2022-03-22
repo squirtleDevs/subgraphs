@@ -1,4 +1,4 @@
-import { BigInt, log } from "@graphprotocol/graph-ts";
+import { BigInt } from "@graphprotocol/graph-ts";
 import {
   Merge,
   Transfer,
@@ -10,7 +10,7 @@ import {
   ConsecutiveTransfer,
 } from "../generated/Merge/Merge";
 import { User, NFT } from "../generated/schema";
-import { EMPTY_ADDRESS, CLASS_MULTIPLIER, NOT_WHITE_VALUE, NG_OMNIBUS } from "./utils";
+import { EMPTY_ADDRESS, CLASS_MULTIPLIER, NG_OMNIBUS } from "./utils";
 
 /* ========== HELPER FUNCTIONS ========== */
 
@@ -22,7 +22,6 @@ import { EMPTY_ADDRESS, CLASS_MULTIPLIER, NOT_WHITE_VALUE, NG_OMNIBUS } from "./
 function checkColor(_tier: string, check: boolean): string {
   let color: string;
   color = "WHITE";
-  log.info("isAlpha: {}", [check.toString()]);
 
   if (check) {
     color = "BLACK";
@@ -65,7 +64,7 @@ function checkMergeClass(_tier: BigInt): string {
 //  * TODO: not sure but I am getting a compile error here. Asked DK. I need to just look into this. This will be done in next PR as I clean up the code.
 //  */
 // type Values = {
-//   massSize: BigInt;
+//   mass: BigInt;
 //   tier: string;
 //   color: string;
 // };
@@ -81,7 +80,7 @@ function checkMergeClass(_tier: BigInt): string {
 //   let tier = checkMergeClass(_tier);
 
 //   value = {
-//     massSize: (nftValue % CLASS_MULTIPLIER) as BigInt,
+//     mass: (nftValue % CLASS_MULTIPLIER) as BigInt,
 //     tier: tier,
 //     color: checkColor(tier),
 //   };
@@ -100,31 +99,26 @@ export function handleTransfer(event: Transfer): void {
   const to = event.params.to.toHex();
   const from = event.params.from.toHex();
 
-  let nft: NFT;
-
   let user = User.load(to);
   const tokenId = event.params.tokenId.toString();
 
-  // Step 0: set NG_OMNIBUS as a whitelisted address as it is done in the constructor
-  if (!user && to == NG_OMNIBUS) {
-    user = new User(to);
-    user.whitelist = true;
-  }
-
-  // Step 1: checks if this is a new user, takes care of first time NG mints too.
+  // Step 0 && Step 1: set NG_OMNIBUS as a whitelisted address as it is done in the constructor, and initialize new users
   if (!user) {
     user = new User(to);
-  } // checks if this is a mint() scenario
+    if (NG_OMNIBUS) {
+      user.whitelist = true;
+    }
+  }
 
   user.save();
+
+  let nft: NFT;
 
   // Step 2a: either create new NFT if in minting phase
   if (from == EMPTY_ADDRESS && to == NG_OMNIBUS) {
     nft = createNFT(event, user.id);
-  }
-
-  // Step 2b: OR updateNFT for all other Transfer scenarios incl: temporary transfers right before merging/burning, simple burning (direct to dead address, which then transfers to address(0))
-  else {
+  } else {
+    // Step 2b: OR updateNFT for all other Transfer scenarios incl: temporary transfers right before merging/burning, simple burning (direct to dead address, which then transfers to address(0))
     nft = updateNFT(tokenId, user.id);
   }
 
@@ -140,9 +134,9 @@ export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
   const alphaTokenId = event.params.tokenId.toString();
   const nft = NFT.load(alphaTokenId) as NFT;
 
-  nft.massSize = event.params.alphaMass;
+  nft.mass = event.params.alphaMass;
   nft.isAlpha = true;
-  nft.color = checkColor(nft.massValue.toString(), nft.isAlpha);
+  nft.color = checkColor(nft.value.toString(), nft.isAlpha);
 
   nft.save();
 }
@@ -158,9 +152,9 @@ export function handleMassUpdate(event: MassUpdate): void {
 
   const nftBurned = NFT.load(tokenIdBurned) as NFT;
   const nftPersist = NFT.load(tokenIdPersist) as NFT;
-  const updatedValue = nftBurned.massSize.plus(nftPersist.massValue);
+  const updatedValue = nftBurned.mass.plus(nftPersist.value);
 
-  nftPersist.massValue = updatedValue;
+  nftPersist.value = updatedValue;
   nftBurned.mergedInto = tokenIdPersist;
 
   const newAbsorbedNFTs = nftPersist.absorbedNFTs;
@@ -171,9 +165,9 @@ export function handleMassUpdate(event: MassUpdate): void {
   mergeTimesPersist.push(event.block.timestamp.toI32());
   nftPersist.mergeTimes = mergeTimesPersist;
 
-  // mergeCount, massSize, color, tier of nftPersist
+  // mergeCount, mass, color, tier of nftPersist
   nftPersist.mergeCount++;
-  nftPersist.massSize = (updatedValue % CLASS_MULTIPLIER) as BigInt;
+  nftPersist.mass = (updatedValue % CLASS_MULTIPLIER) as BigInt;
   const bigIntTier: BigInt = updatedValue / CLASS_MULTIPLIER;
   const tier: string = checkMergeClass(bigIntTier);
   nftPersist.tier = tier;
@@ -185,9 +179,9 @@ export function handleMassUpdate(event: MassUpdate): void {
 
   // TODO: when decodeValue() works, may have to tweak as I haven't looked at it in a bit.
 
-  // nftPersist.massSize = decodeValue(
+  // nftPersist.mass = decodeValue(
   //   updatedValue
-  // ).massSize;
+  // ).mass;
   // nftPersist.color = decodeValue(updatedValue).color;
   // nftPersist.tier = decodeValue(updatedValue).tier;
 
@@ -234,11 +228,8 @@ export function createNFT(event: Transfer, userId: string): NFT {
   const nftValue = contract.getValueOf(tokenId);
 
   // obtain nft fields throughs calculating off of encoded value
-  if (nftValue >= NOT_WHITE_VALUE) {
-    log.info("nft value: {}", [nftValue.toString()]);
-  }
-  nft.massValue = nftValue;
-  nft.massSize = (nftValue % CLASS_MULTIPLIER) as BigInt;
+  nft.value = nftValue;
+  nft.mass = (nftValue % CLASS_MULTIPLIER) as BigInt;
   const bigIntTier: BigInt = nftValue / CLASS_MULTIPLIER;
   const tier: string = checkMergeClass(bigIntTier);
   nft.tier = tier;
@@ -258,18 +249,15 @@ export function createNFT(event: Transfer, userId: string): NFT {
 
 /**
  * @notice
- * @param event
  */
 export function handleApproval(event: Approval): void {}
 
 /**
  * @notice
- * @param event
  */
 export function handleApprovalForAll(event: ApprovalForAll): void {}
 
 /**
  * @notice
- * @param event
  */
 export function handleConsecutiveTransfer(event: ConsecutiveTransfer): void {}
