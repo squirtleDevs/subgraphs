@@ -38,7 +38,7 @@ type NFT @entity {
   "Unique tokenID"
   id: ID!
   "Current owner unless merged where it would be address(0)"
-  owner: User!
+  owner: User
   "NFT-Specific value representing tier and mass"
   value: BigInt!
   "Size of mass for a specific NFT"
@@ -82,7 +82,7 @@ type Collection @entity {
   "Number of archaic non-merge burns"
   totalBurns: Int
   "Total mass in the collection"
-  totalMass: Int
+  totalMass: BigInt!
   "Total tier-1 (least rare tier) WHITE NFTs"
   tier1Totals: Int
   "Total tier-2 (4th rare tier) YELLOW NFTs"
