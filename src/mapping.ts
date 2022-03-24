@@ -38,11 +38,7 @@ export function handleTransfer(event: Transfer): void {
 
   let user = User.load(to);
   const tokenId = event.params.tokenId.toString();
-  let collection = Collection.load(MERGE_EXTADDR);
-
-  if (!collection) {
-    collection = createCollection(MERGE_EXTADDR); // NEW for collection entity - first instance of minting
-  }
+  const collection = createOrLoadCollection(MERGE_EXTADDR);
 
   if (!user) {
     user = new User(to);
@@ -56,8 +52,13 @@ export function handleTransfer(event: Transfer): void {
 
   let scenario: string;
   if (from == EMPTY_ADDRESS && to == NG_OMNIBUS) {
-    createNFT(event, user.id);
+    const contract = Merge.bind(event.address);
+    const nftValue = contract.getValueOf(event.params.tokenId);
+    // assign user.id to nft.owner within handleTransfer()
+    const nft = createOrGetNFT(tokenId, nftValue);
+    nft.owner = user.id;
     scenario = "Mint";
+    nft.save();
     updateCollection(tokenId, scenario);
   } else if (to == EMPTY_ADDRESS && from == NG_OMNIBUS) {
     scenario = "NiftyBurn";
@@ -83,37 +84,28 @@ export function handleTransfer(event: Transfer): void {
 /**
  * @notice updates when new alphaMass identified
  * @param event AlphaMassUpdate
- * @dev TODO: need to handle the old alphaMass still - tbd in update 4 PR. So if one tokenId is alpha one day, but the next a different one is, they will both have the 'isAlpha' field as 'true'
+ * @dev NOTE: `nft.value` is updated for the respective entity (old or new alpha) within either MassUpdate or Transfer event (when minting) as per the smart contract logic. I am assuming that
+ * the title of 'alpha' was given when minting phase was done though. With that assumption, I believe we have our bases covered for ensuring that value will ultimately be updated for the old or new alpha.
  */
 export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
   const alphaTokenId = event.params.tokenId.toString();
-  const nft = NFT.load(alphaTokenId);
 
-  // TODO: remove this possibly: nft should exist, but doing this since compiler was giving me issues with null
-  if (!nft) {
-    const tokenIdString = event.params.tokenId.toString();
-    const tokenId = event.params.tokenId;
-    const nft = new NFT(tokenIdString);
-    const contract = Merge.bind(event.address);
-    const nftValue = contract.getValueOf(tokenId);
-
-    // obtain nft fields throughs calculating off of encoded value
-    nft.value = nftValue;
+  const nft = createOrGetNFT(alphaTokenId, BIGINT_ZERO);
+  const collection = Collection.load(MERGE_EXTADDR) as Collection;
+  if (nft.isAlpha) {
     nft.mass = event.params.alphaMass;
-    const bigIntTier: BigInt = nftValue / CLASS_MULTIPLIER;
-    const tier: string = checkMergeClass(bigIntTier);
-    nft.tier = tier;
-
-    // initialize other fields for new nft
-    nft.isAlpha = true;
-    nft.mergeCount = 0;
-    nft.color = "BLACK";
-    const scenario = "Alpha"; // NEW for collection entity
-    updateCollection(alphaTokenId, scenario); // NEW for collection entity
-
     nft.save();
+    return;
   } else {
-    //actual mass updates that need to be run for an alphaMassUpdate() - what I would expect to only have in this function since nft should exist already.
+    // takes title of Alpha away from old alpha token
+    const oldAlphaId = collection.alphaTokenId as string;
+    const oldAlphaNFT = NFT.load(oldAlphaId) as NFT;
+    oldAlphaNFT.isAlpha = false;
+    const tier = oldAlphaNFT.tier;
+    oldAlphaNFT.color = checkColor(tier);
+    oldAlphaNFT.save();
+    // update new alpha!
+
     nft.mass = event.params.alphaMass;
     nft.isAlpha = true;
     nft.color = "BLACK";
@@ -132,8 +124,8 @@ export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
 export function handleMassUpdate(event: MassUpdate): void {
   const tokenIdBurned = event.params.tokenIdBurned.toString();
   const tokenIdPersist = event.params.tokenIdPersist.toString();
-  const nftBurned = NFT.load(tokenIdBurned) as NFT;
-  const nftPersist = NFT.load(tokenIdPersist) as NFT;
+  const nftBurned = createOrGetNFT(tokenIdBurned, BIGINT_ZERO);
+  const nftPersist = createOrGetNFT(tokenIdPersist, BIGINT_ZERO);
 
   // update value field for nftPersist
   const updatedValue = nftBurned.mass.plus(nftPersist.value);
@@ -192,6 +184,9 @@ export function handleWhitelistUpdate(call: WhitelistUpdateCall): void {
  * @notice load NFT or call createNFT() for new NFT
  * @param event: Transfer from handleTransfer() caller
  * @returns NFT with updated owner, or newly minted NFT entity
+ * @dev NOTE: I thought about removing this but since I use value, a contract-bound-derived
+ * metric, within `createOrGetNFT()` I pretty much felt that I should keep this helper function
+ * to keep things simple.
  */
 function updateNFT(tokenId: string, userId: string): NFT {
   const nft = NFT.load(tokenId) as NFT;
@@ -201,32 +196,29 @@ function updateNFT(tokenId: string, userId: string): NFT {
 }
 
 /**
- * @notice create new NFT entity types upon mint
- * @param event: Transfer from handleTransfer() caller function
- * @dev key thing is the nftValue variable that is the encoded value metric used within the smart contracts to encode the mass and class data for each nft
+ * @notice create new NFT entity types upon mint or loads pre-existing NFT
+ * @param tokenId signifying unique ID of token
+ * @param nftValue encoded values for each, respective NFT, in the smart contracts
+ * @return newly created or pre-exiseting NFT
+ * @dev key thing is the nftValue variable that is the encoded value metric used within the smart
+ * contracts to encode the mass and class data for each nft
  */
-export function createNFT(event: Transfer, userId: string): NFT {
-  const tokenIdString = event.params.tokenId.toString();
-  const tokenId = event.params.tokenId;
-  const nft = new NFT(tokenIdString);
-  const contract = Merge.bind(event.address);
-  nft.owner = userId;
-
-  const nftValue = contract.getValueOf(tokenId);
-
-  // obtain nft fields throughs calculating off of encoded value
-  nft.value = nftValue;
-  nft.mass = (nftValue % CLASS_MULTIPLIER) as BigInt;
-  const bigIntTier: BigInt = nftValue / CLASS_MULTIPLIER;
-  const tier: string = checkMergeClass(bigIntTier);
-  nft.tier = tier;
-  nft.isAlpha = false;
-  nft.color = checkColor(tier);
-
-  nft.mergeCount = 0;
-
-  nft.save();
-  return nft;
+export function createOrGetNFT(tokenId: string, nftValue: BigInt): NFT {
+  const nft = NFT.load(tokenId);
+  if (nft == null) {
+    const nft = new NFT(tokenId);
+    // obtain nft fields throughs calculating off of encoded value
+    nft.value = nftValue;
+    nft.mass = (nftValue % CLASS_MULTIPLIER) as BigInt;
+    const bigIntTier: BigInt = nftValue / CLASS_MULTIPLIER;
+    const tier = checkMergeClass(bigIntTier);
+    nft.tier = tier;
+    nft.color = checkColor(tier);
+    nft.isAlpha = false;
+    nft.mergeCount = 0;
+    nft.save();
+  }
+  return nft as NFT;
 }
 
 /**
@@ -234,27 +226,27 @@ export function createNFT(event: Transfer, userId: string): NFT {
  * @param extAddr hexstring of ext address of contract
  * @returns newly initialized collection entity
  */
-function createCollection(extAddr: string): Collection {
-  const collection = new Collection(extAddr);
-
-  // initialize constants for collection
-
-  collection.name = MERGE_NAME;
-  collection.tokenStandard = TOKENSTANDARD;
-  collection.totalUniqueOwnerAddresses = 0;
-  collection.initialNFTTotal = 0;
-  collection.tier1Totals = 0;
-  collection.tier2Totals = 0;
-  collection.tier3Totals = 0;
-  collection.tier4Totals = 0;
-  collection.totalBurns = 0;
-  collection.mergeNFTsATM = 0;
-  collection.totalMerges = 0;
-  collection.totalMass = BIGINT_ZERO;
-  collection.originalMass = BIGINT_ZERO;
-
-  collection.save();
-  return collection;
+function createOrLoadCollection(extAddr: string): Collection {
+  const collection = Collection.load(extAddr);
+  if (collection == null) {
+    // initialize constants for collection
+    const collection = new Collection(extAddr);
+    collection.name = MERGE_NAME;
+    collection.tokenStandard = TOKENSTANDARD;
+    collection.totalUniqueOwnerAddresses = 0;
+    collection.initialNFTTotal = 0;
+    collection.tier1Totals = 0;
+    collection.tier2Totals = 0;
+    collection.tier3Totals = 0;
+    collection.tier4Totals = 0;
+    collection.totalBurns = 0;
+    collection.mergeNFTsATM = 0;
+    collection.totalMerges = 0;
+    collection.totalMass = BIGINT_ZERO;
+    collection.originalMass = BIGINT_ZERO;
+    collection.save();
+  }
+  return collection as Collection;
 }
 
 // * @dev TODO: edge case, if there are no longer any NFTs within NG ownership.
@@ -266,11 +258,11 @@ function createCollection(extAddr: string): Collection {
  * @param scenario whether Mint, NonNiftyBurn, NiftyBurn, StraightBurn, Merge, Alpha.
  */
 function updateCollection(tokenId: string, scenario: string): void {
-  let collection = Collection.load(MERGE_EXTADDR);
-
-  if (!collection) {
-    collection = createCollection(MERGE_EXTADDR); // NEW for collection entity - first instance of minting merge.
-  }
+  // let collection = Collection.load(MERGE_EXTADDR);
+  const collection = createOrLoadCollection(MERGE_EXTADDR);
+  // if (!collection) {
+  //   collection = createCollection(MERGE_EXTADDR); // NEW for collection entity - first instance of minting merge.
+  // }
 
   const nft = NFT.load(tokenId) as NFT;
 
