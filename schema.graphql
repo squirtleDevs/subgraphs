@@ -72,7 +72,7 @@ type Collection @entity {
   "ERC token standard used in this collection"
   tokenStandard: String!
   "TokenID of alpha mass"
-  alphaTokenId: NFT
+  alphaTokenId: String!
   "Initial total minted individual mergeNFTs"
   initialNFTTotal: Int
   "Current amount of individual mergeNFTs existing"

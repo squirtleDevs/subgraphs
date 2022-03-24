@@ -91,15 +91,17 @@ export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
   const alphaTokenId = event.params.tokenId.toString();
 
   const nft = createOrGetNFT(alphaTokenId, BIGINT_ZERO);
-  const collection = Collection.load(MERGE_EXTADDR) as Collection;
+
+  const collection = createOrLoadCollection(MERGE_EXTADDR);
+
   if (nft.isAlpha) {
     nft.mass = event.params.alphaMass;
     nft.save();
     return;
   } else {
     // takes title of Alpha away from old alpha token
-    const oldAlphaId = collection.alphaTokenId as string;
-    const oldAlphaNFT = NFT.load(oldAlphaId) as NFT;
+    let oldAlphaId = collection.alphaTokenId;
+    let oldAlphaNFT = createOrGetNFT(oldAlphaId, BIGINT_ZERO);
     oldAlphaNFT.isAlpha = false;
     const tier = oldAlphaNFT.tier;
     oldAlphaNFT.color = checkColor(tier);
@@ -204,9 +206,9 @@ function updateNFT(tokenId: string, userId: string): NFT {
  * contracts to encode the mass and class data for each nft
  */
 export function createOrGetNFT(tokenId: string, nftValue: BigInt): NFT {
-  const nft = NFT.load(tokenId);
+  let nft = NFT.load(tokenId);
   if (nft == null) {
-    const nft = new NFT(tokenId);
+    nft = new NFT(tokenId);
     // obtain nft fields throughs calculating off of encoded value
     nft.value = nftValue;
     nft.mass = (nftValue % CLASS_MULTIPLIER) as BigInt;
@@ -227,10 +229,10 @@ export function createOrGetNFT(tokenId: string, nftValue: BigInt): NFT {
  * @returns newly initialized collection entity
  */
 function createOrLoadCollection(extAddr: string): Collection {
-  const collection = Collection.load(extAddr);
+  let collection = Collection.load(extAddr);
   if (collection == null) {
     // initialize constants for collection
-    const collection = new Collection(extAddr);
+    collection = new Collection(extAddr);
     collection.name = MERGE_NAME;
     collection.tokenStandard = TOKENSTANDARD;
     collection.totalUniqueOwnerAddresses = 0;
@@ -244,6 +246,7 @@ function createOrLoadCollection(extAddr: string): Collection {
     collection.totalMerges = 0;
     collection.totalMass = BIGINT_ZERO;
     collection.originalMass = BIGINT_ZERO;
+    collection.alphaTokenId = "";
     collection.save();
   }
   return collection as Collection;
