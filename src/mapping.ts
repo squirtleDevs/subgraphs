@@ -57,6 +57,12 @@ export function handleTransfer(event: Transfer): void {
     // assign user.id to nft.owner within handleTransfer()
     const nft = createOrGetNFT(tokenId, nftValue);
     nft.owner = user.id;
+
+    // update NFT owner list
+    const ownerList = nft.allOwners;
+    ownerList.push(nft.owner);
+    nft.allOwners = ownerList;
+
     scenario = "Mint";
     nft.save();
     updateCollection(tokenId, scenario);
@@ -100,8 +106,8 @@ export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
     return;
   } else {
     // takes title of Alpha away from old alpha token
-    let oldAlphaId = collection.alphaTokenId;
-    let oldAlphaNFT = createOrGetNFT(oldAlphaId, BIGINT_ZERO);
+    const oldAlphaId = collection.alphaTokenId;
+    const oldAlphaNFT = createOrGetNFT(oldAlphaId, BIGINT_ZERO);
     oldAlphaNFT.isAlpha = false;
     const tier = oldAlphaNFT.tier;
     oldAlphaNFT.color = checkColor(tier);
@@ -191,8 +197,15 @@ export function handleWhitelistUpdate(call: WhitelistUpdateCall): void {
  * to keep things simple.
  */
 function updateNFT(tokenId: string, userId: string): NFT {
-  const nft = NFT.load(tokenId) as NFT;
+  const nft = createOrGetNFT(tokenId, BIGINT_ZERO);
+
   nft.owner = userId;
+
+  // update NFT owner list
+  const ownerList = nft.allOwners;
+  ownerList.push(nft.owner);
+  nft.allOwners = ownerList;
+
   nft.save();
   return nft;
 }

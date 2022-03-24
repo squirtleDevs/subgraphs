@@ -38,7 +38,7 @@ type NFT @entity {
   "Unique tokenID"
   id: ID!
   "Current owner unless merged where it would be address(0)"
-  owner: User
+  owner: User!
   "NFT-Specific value representing tier and mass"
   value: BigInt!
   "Size of mass for a specific NFT"
@@ -51,6 +51,8 @@ type NFT @entity {
   mergeCount: Int!
   "Whether the NFT is alpha or not"
   isAlpha: Boolean
+  "All owners of this nft - past and present"
+  allOwners: [User!]!
   "What tokenId this NFT was merged into"
   mergedInto: NFT
   "unix timestamps when merge txs occurred"
