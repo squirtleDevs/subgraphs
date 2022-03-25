@@ -85,18 +85,34 @@ type Collection @entity {
   id: ID!
   "Name of NFT collection"
   Name: String!
-  "Original amount of mass minted"
-  originalMasses: Int!
-  "Current amount of mass existing"
-  currentMasses: Int!
-  "Total mass in the collection"
-  totalMass: Int!
+  "Total Mass in beginning"
+  originalMass: Int!
   "ERC token standard used in this collection"
   tokenStandard: String!
   "TokenID of alpha mass"
   alphaMass: String
   "Owner of alpha mass"
   alphaOwner: [NFTs!]! @derivedFrom(field: "tokenID")
+  "Original amount of individual mergeNFTs minted"
+  originalMergeNFTs: Int!
+  "Current amount of individual mergeNFTs existing"
+  currentMergeNFTs: Int! # this includes accounts that are in Nifty Gateway OMNIBUS
+  "Number of Merges that have occurred"
+  totalMerges: Int
+  "Number of archaic non-merge burns"
+  noMergeBurns: Int
+  "Total mass in the collection"
+  totalMass: Int!
+  "Total tier-1 (least rare tier) WHITE NFTs"
+  tier1Totals: Int
+  "Total tier-2 (4th rare tier) YELLOW NFTs"
+  tier2Totals: Int
+  "Total tier-3 (3rd rare tier) BLUE NFTs"
+  tier3Totals: Int
+  "Total tier-4 (2nd rare tier) RED NFTs"
+  tier4Totals: Int
+  "Number of current unique addresses holding these NFTs"
+  totalUniqueAddresses: Int # this does not include accuonts that are in Nifty Gateway OMNIBUS
 }
 
 """
