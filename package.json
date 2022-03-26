@@ -11,7 +11,7 @@
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts'",
     "eslint": "eslint 'src/**/*.ts'",
-    "eslint:fix": "eslint --fix 'src/**/*.ts'"
+    "eslint:fix": "eslint --fix 'src/*.ts'"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "0.27.0",

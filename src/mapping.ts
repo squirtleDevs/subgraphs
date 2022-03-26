@@ -35,56 +35,46 @@ import {
 export function handleTransfer(event: Transfer): void {
   const to = event.params.to.toHex();
   const from = event.params.from.toHex();
-
-  let user = User.load(to);
   const tokenId = event.params.tokenId.toString();
   const collection = createOrLoadCollection(MERGE_EXTADDR);
+  let user = User.load(to);
 
   if (!user) {
     user = new User(to);
     collection.totalUniqueOwnerAddresses++;
     collection.save();
-    user.save();
     if (to == NG_OMNIBUS) {
       user.whitelist = true;
     }
+    user.save();
   }
 
   let scenario: string;
+  let nftValue: BigInt;
+
   if (from == EMPTY_ADDRESS && to == NG_OMNIBUS) {
     const contract = Merge.bind(event.address);
-    const nftValue = contract.getValueOf(event.params.tokenId);
-    // assign user.id to nft.owner within handleTransfer()
-    const nft = createOrGetNFT(tokenId, nftValue);
-    nft.owner = user.id;
-
-    // update NFT owner list
-    const ownerList = nft.allOwners;
-    ownerList.push(nft.owner);
-    nft.allOwners = ownerList;
-
+    nftValue = contract.getValueOf(event.params.tokenId);
     scenario = "Mint";
-    nft.save();
-    updateCollection(tokenId, scenario);
-  } else if (to == EMPTY_ADDRESS && from == NG_OMNIBUS) {
-    scenario = "NiftyBurn";
-    updateNFT(tokenId, user.id);
-    updateCollection(tokenId, scenario);
-  } else if (to == EMPTY_ADDRESS) {
-    scenario = "NonNiftyBurn";
-    updateNFT(tokenId, user.id);
-    updateCollection(tokenId, scenario);
-  } else if (from == ADDR_DEAD) {
-    scenario = "StraightBurn";
-    updateCollection(tokenId, scenario);
-  } else if (!(from == NG_OMNIBUS && to != EMPTY_ADDRESS && to != ADDR_DEAD)) {
-    scenario = "normTransfer"; //transfer to someone who doesn't own a mergeNFT yet
-    updateNFT(tokenId, user.id);
-    collection.totalUniqueOwnerAddresses--; // to counterbalance the ++ when making this new user entity.
-    collection.save();
+  } else {
+    nftValue = BIGINT_ZERO;
   }
 
-  user.save();
+  //TODO: Figure out how to clean up this nested if statement without overwriting when mints are happening.
+  if (scenario != "Mint") {
+    if (to == EMPTY_ADDRESS && from == NG_OMNIBUS) {
+      scenario = "NiftyBurn";
+    } else if (to == EMPTY_ADDRESS) {
+      scenario = "NonNiftyBurn";
+    } else if (from == ADDR_DEAD) {
+      scenario = "StraightBurn";
+    } else if (!(from == NG_OMNIBUS && to != EMPTY_ADDRESS && to != ADDR_DEAD)) {
+      scenario = "normTransfer"; //transfer to someone who doesn't own a mergeNFT yet
+    }
+  }
+
+  updateNFT(tokenId, user.id, nftValue);
+  updateCollection(tokenId, scenario);
 }
 
 /**
@@ -95,16 +85,12 @@ export function handleTransfer(event: Transfer): void {
  */
 export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
   const alphaTokenId = event.params.tokenId.toString();
-
   const nft = createOrGetNFT(alphaTokenId, BIGINT_ZERO);
+  //update mass for alpha regardless of new or oldAlpha
+  nft.mass = event.params.alphaMass;
 
-  const collection = createOrLoadCollection(MERGE_EXTADDR);
-
-  if (nft.isAlpha) {
-    nft.mass = event.params.alphaMass;
-    nft.save();
-    return;
-  } else {
+  if (!nft.isAlpha) {
+    const collection = createOrLoadCollection(MERGE_EXTADDR);
     // takes title of Alpha away from old alpha token
     const oldAlphaId = collection.alphaTokenId;
     const oldAlphaNFT = createOrGetNFT(oldAlphaId, BIGINT_ZERO);
@@ -113,25 +99,24 @@ export function handleAlphaMassUpdate(event: AlphaMassUpdate): void {
     oldAlphaNFT.color = checkColor(tier);
     oldAlphaNFT.save();
     // update new alpha!
-
-    nft.mass = event.params.alphaMass;
     nft.isAlpha = true;
     nft.color = "BLACK";
     const scenario = "Alpha";
     updateCollection(alphaTokenId, scenario);
-
-    nft.save();
   }
+
+  nft.save();
 }
 
 /**
  * @notice when merges are truly taken record of
  * @param event MassUpdate
- * @dev TODO: nice to have --> fix decodeValues() commented out code at bottom of function
  */
 export function handleMassUpdate(event: MassUpdate): void {
   const tokenIdBurned = event.params.tokenIdBurned.toString();
   const tokenIdPersist = event.params.tokenIdPersist.toString();
+
+  // TODO: repeat code (createOrGetNFT)
   const nftBurned = createOrGetNFT(tokenIdBurned, BIGINT_ZERO);
   const nftPersist = createOrGetNFT(tokenIdPersist, BIGINT_ZERO);
 
@@ -144,6 +129,7 @@ export function handleMassUpdate(event: MassUpdate): void {
   const newAbsorbedNFTs = nftPersist.absorbedNFTs;
   newAbsorbedNFTs.push(tokenIdBurned);
   nftPersist.absorbedNFTs = newAbsorbedNFTs;
+  nftBurned.save();
 
   // update mergeTimes array
   const mergeTimesPersist = nftPersist.mergeTimes;
@@ -152,9 +138,9 @@ export function handleMassUpdate(event: MassUpdate): void {
 
   // update mergeCount, mass, color, tier of nftPersist
   nftPersist.mergeCount++;
-  nftPersist.mass = (updatedValue % CLASS_MULTIPLIER) as BigInt;
-  const bigIntTier: BigInt = updatedValue / CLASS_MULTIPLIER;
-  const tier: string = checkMergeClass(bigIntTier);
+  nftPersist.mass = (updatedValue % CLASS_MULTIPLIER) as BigInt; // NOTE: during a alphaMassUpdate scenario, this already is updated actually. Edge case but doesn't matter (just redundant code in that scenario).
+  const bigIntTier = updatedValue / CLASS_MULTIPLIER;
+  const tier = checkMergeClass(bigIntTier);
   nftPersist.tier = tier;
   nftPersist.color = checkColor(tier);
 
@@ -162,27 +148,14 @@ export function handleMassUpdate(event: MassUpdate): void {
   const scenario = "Merge";
   updateCollection(nftBurned.id, scenario);
 
-  nftBurned.save();
   nftPersist.save();
-
-  // TODO: when decodeValue() works, may have to tweak as I haven't looked at it in a bit.
-
-  // nftPersist.mass = decodeValue(
-  //   updatedValue
-  // ).mass;
-  // nftPersist.color = decodeValue(updatedValue).color;
-  // nftPersist.tier = decodeValue(updatedValue).tier;
 }
 
 /* ========== CALL HANDLERS ========== */
 
 export function handleWhitelistUpdate(call: WhitelistUpdateCall): void {
-  const address = call.inputs.address_.toHexString();
-  const status = call.inputs.status;
-
-  const user = User.load(address) as User;
-
-  user.whitelist = status;
+  const user = User.load(call.inputs.address_.toHexString()) as User;
+  user.whitelist = call.inputs.status;
   user.save();
 }
 
@@ -196,8 +169,8 @@ export function handleWhitelistUpdate(call: WhitelistUpdateCall): void {
  * metric, within `createOrGetNFT()` I pretty much felt that I should keep this helper function
  * to keep things simple.
  */
-function updateNFT(tokenId: string, userId: string): NFT {
-  const nft = createOrGetNFT(tokenId, BIGINT_ZERO);
+function updateNFT(tokenId: string, userId: string, nftValue: BigInt): NFT {
+  const nft = createOrGetNFT(tokenId, nftValue);
 
   nft.owner = userId;
 
@@ -220,20 +193,21 @@ function updateNFT(tokenId: string, userId: string): NFT {
  */
 export function createOrGetNFT(tokenId: string, nftValue: BigInt): NFT {
   let nft = NFT.load(tokenId);
-  if (nft == null) {
-    nft = new NFT(tokenId);
-    // obtain nft fields throughs calculating off of encoded value
-    nft.value = nftValue;
-    nft.mass = (nftValue % CLASS_MULTIPLIER) as BigInt;
-    const bigIntTier: BigInt = nftValue / CLASS_MULTIPLIER;
-    const tier = checkMergeClass(bigIntTier);
-    nft.tier = tier;
-    nft.color = checkColor(tier);
-    nft.isAlpha = false;
-    nft.mergeCount = 0;
-    nft.save();
-  }
-  return nft as NFT;
+  if (nft != null) return nft;
+
+  nft = new NFT(tokenId);
+  // obtain nft fields throughs calculating off of encoded value
+  nft.value = nftValue;
+  nft.mass = (nftValue % CLASS_MULTIPLIER) as BigInt;
+  const bigIntTier: BigInt = nftValue / CLASS_MULTIPLIER;
+  const tier = checkMergeClass(bigIntTier);
+  nft.tier = tier;
+  nft.color = checkColor(tier);
+  nft.isAlpha = false;
+  nft.mergeCount = 0;
+  nft.save();
+
+  return nft;
 }
 
 /**
@@ -243,93 +217,63 @@ export function createOrGetNFT(tokenId: string, nftValue: BigInt): NFT {
  */
 function createOrLoadCollection(extAddr: string): Collection {
   let collection = Collection.load(extAddr);
-  if (collection == null) {
-    // initialize constants for collection
-    collection = new Collection(extAddr);
-    collection.name = MERGE_NAME;
-    collection.tokenStandard = TOKENSTANDARD;
-    collection.totalUniqueOwnerAddresses = 0;
-    collection.initialNFTTotal = 0;
-    collection.tier1Totals = 0;
-    collection.tier2Totals = 0;
-    collection.tier3Totals = 0;
-    collection.tier4Totals = 0;
-    collection.totalBurns = 0;
-    collection.mergeNFTsATM = 0;
-    collection.totalMerges = 0;
-    collection.totalMass = BIGINT_ZERO;
-    collection.originalMass = BIGINT_ZERO;
-    collection.alphaTokenId = "";
-    collection.save();
-  }
-  return collection as Collection;
+  if (collection != null) return collection;
+
+  // initialize constants for collection
+  collection = new Collection(extAddr);
+  collection.name = MERGE_NAME;
+  collection.tokenStandard = TOKENSTANDARD;
+  collection.totalUniqueOwnerAddresses = 0;
+  collection.initialNFTTotal = 0;
+  collection.tier1Totals = 0;
+  collection.tier2Totals = 0;
+  collection.tier3Totals = 0;
+  collection.tier4Totals = 0;
+  collection.totalBurns = 0;
+  collection.mergeNFTsATM = 0;
+  collection.totalMerges = 0;
+  collection.totalMass = BIGINT_ZERO;
+  collection.originalMass = BIGINT_ZERO;
+  collection.alphaTokenId = "";
+  collection.save();
+
+  return collection;
 }
 
-// * @dev TODO: edge case, if there are no longer any NFTs within NG ownership.
-//increment or decrement merge. collection entity
-
 /**
- *
+ * @notice update collection entity representing entire nft project
  * @param tokenId
  * @param scenario whether Mint, NonNiftyBurn, NiftyBurn, StraightBurn, Merge, Alpha.
+ * @dev TODO: this "clean-up" I tried to do within updateCollection() has caused the totalBurns and totalMerges count to be off. May also have to do with tallyBurnDetails()
  */
 function updateCollection(tokenId: string, scenario: string): void {
-  // let collection = Collection.load(MERGE_EXTADDR);
-  const collection = createOrLoadCollection(MERGE_EXTADDR);
-  // if (!collection) {
-  //   collection = createCollection(MERGE_EXTADDR); // NEW for collection entity - first instance of minting merge.
-  // }
+  let collection = createOrLoadCollection(MERGE_EXTADDR);
 
   const nft = NFT.load(tokenId) as NFT;
 
   const tier = nft.tier;
 
   if (scenario == "Mint") {
-    // update NFT count in beginning of merge collection, NOTE: this is where I wonder if I am off by 1 for some reason. Perhaps they started the count with 1, instead of 0 for some reason.
     collection.initialNFTTotal++;
     collection.mergeNFTsATM++;
-
     collection.originalMass = collection.originalMass.plus(nft.mass);
     collection.totalMass = collection.totalMass.plus(nft.mass);
-
-    if (tier == "ONE") {
-      collection.tier1Totals++;
-    } else if (tier == "TWO") {
-      collection.tier2Totals++;
-    } else if (tier == "THREE") {
-      collection.tier3Totals++;
-    } else if (tier == "FOUR") {
-      collection.tier4Totals++;
-    }
-    collection.save();
-    // TODO: LESSON - if you save an entity but are not done the function call, and then call another function and try loading that newly saved entity, it will not update the same entity with the helper function stuff. Keep it all in the same block of scope.
-    // tallyTier(tier, scenario);
-  } else if (scenario == "NonNiftyBurn" || scenario == "NiftyBurn" || scenario == "StraightBurn") {
-    if (tier == "ONE") {
-      collection.tier1Totals--;
-    } else if (tier == "TWO") {
-      collection.tier2Totals--;
-    } else if (tier == "THREE") {
-      collection.tier3Totals--;
-    } else if (tier == "FOUR") {
-      collection.tier4Totals--;
-    }
-
-    collection.mergeNFTsATM--;
-    collection.totalBurns++;
-
-    if (scenario == "NonNiftyBurn") {
-      collection.totalUniqueOwnerAddresses--;
-    }
-    if (scenario == "StraightBurn") {
-      collection.totalMass = collection.totalMass.minus(nft.mass);
-      collection.totalUniqueOwnerAddresses--;
-    }
   } else if (scenario == "Merge") {
     collection.totalMerges++;
   } else if (scenario == "Alpha") {
     collection.alphaTokenId = tokenId;
+  } else if (scenario == "normTransfer") {
+    collection.totalUniqueOwnerAddresses--; // to counterbalance the ++ when making this new user entity.
+  } else collection == tallyBurnDetails(collection); // for all burn scenarios
+
+  if (scenario == "NonNiftyBurn") {
+    collection.totalUniqueOwnerAddresses--;
   }
+  // TODO: Fix this since I know that I need a callHandler for burn()
+  else if (scenario == "StraightBurn") {
+    collection.totalMass = collection.totalMass.minus(nft.mass);
+  }
+  collection = tallyTier(tier, scenario, collection);
   collection.save();
 }
 
@@ -341,20 +285,10 @@ function updateCollection(tokenId: string, scenario: string): void {
  * @returns Color: string
  */
 function checkColor(_tier: string): string {
-  let color: string;
-  color = "WHITE";
-
-  if (_tier == "ONE") {
-    return color;
-  } else if (_tier == "TWO") {
-    color = "YELLOW";
-  } else if (_tier == "THREE") {
-    color = "BLUE";
-  } else if (_tier == "FOUR") {
-    color = "RED";
-  }
-
-  return color;
+  if (_tier == "ONE") return "WHITE";
+  if (_tier == "TWO") return "YELLOW";
+  if (_tier == "THREE") return "BLUE";
+  return "RED";
 }
 
 /**
@@ -363,20 +297,51 @@ function checkColor(_tier: string): string {
  * @returns tier: string
  */
 function checkMergeClass(_tier: BigInt): string {
-  let tier: string;
-  tier = "ONE";
+  if (_tier == BigInt.fromI32(1)) return "ONE";
+  if (_tier == BigInt.fromI32(2)) return "TWO";
+  if (_tier == BigInt.fromI32(3)) return "THREE";
+  return "FOUR";
+}
 
-  if (_tier == BigInt.fromI32(1)) {
-    return tier;
-  } else if (_tier == BigInt.fromI32(2)) {
-    tier = "TWO";
-  } else if (_tier == BigInt.fromI32(3)) {
-    tier = "THREE";
-  } else if (_tier == BigInt.fromI32(4)) {
-    tier = "FOUR";
+/**
+ * @notice increments or decrements respective tier tally within collection
+ * @param tier of nft
+ * @param scenario representative of transfer type occurring
+ * @param collection with partially updated fields
+ * @returns collection, an updated collection entity
+ */
+function tallyTier(tier: string, scenario: string, collection: Collection): Collection {
+  // update tier counts
+  if (scenario == "Mint" && tier == "ONE") {
+    collection.tier1Totals++;
+  } else if (scenario == "Mint" && tier == "TWO") {
+    collection.tier2Totals++;
+  } else if (scenario == "Mint" && tier == "THREE") {
+    collection.tier3Totals++;
+  } else if (scenario == "Mint" && tier == "FOUR") {
+    collection.tier4Totals++;
+  } else if (tier == "ONE") {
+    collection.tier1Totals--;
+  } else if (tier == "TWO") {
+    collection.tier2Totals--;
+  } else if (tier == "THREE") {
+    collection.tier3Totals--;
+  } else if (tier == "FOUR") {
+    collection.tier4Totals--;
   }
+  return collection;
+}
 
-  return tier;
+/**
+ * @notice changes burn-related counts as a helper function
+ * @param collection with partially updated fields
+ * @dev TODO: this plus the "clean-up" I tried to do within updateCollection() has caused the totalBurns and totalMerges count to be off.
+ *  @returns collection, an updated collection entity
+ */
+function tallyBurnDetails(collection: Collection): Collection {
+  collection.mergeNFTsATM--;
+  collection.totalBurns++;
+  return collection;
 }
 
 /* ========== TBD EVENT HANDLER FUNCTIONS ========== */
@@ -395,111 +360,3 @@ export function handleApprovalForAll(event: ApprovalForAll): void {}
  * @notice
  */
 export function handleConsecutiveTransfer(event: ConsecutiveTransfer): void {}
-
-/* ========== NICE TO HAVE IMPROVEMENT FUNCTIONS ========== */
-
-// THESE FUNCTIONS WOULD BE GREAT TO HAVE AFTER I GET THE CORE IMPLEMENTATION DONE FOR THE SUBGRAPH. LEAVING IT HERE FOR REFERENCE THOUGH.
-
-/* ========== FROM UPDATE 1 ========== */
-
-// /**
-//  * @notice object type where properties represent value-based-decoded nft metadata
-//  * TODO: not sure but I am getting a compile error here. Asked DK. I need to just look into this. This will be done in next PR as I clean up the code.
-//  */
-// type Values = {
-//   mass: BigInt;
-//   tier: string;
-//   color: string;
-// };
-
-// /**
-//  * @notice carries out decoding of value for a particular mass NFT
-//  * @returns value : Values
-//  * @dev TODO: see Object Type Values above and the error that is there. Once that is resolved then this can be used.
-//  */
-// function decodeValue(nftValue: BigInt): Values {
-//   let value: Values;
-//   let _tier: BigInt = nftValue / CLASS_MULTIPLIER;
-//   let tier = checkMergeClass(_tier);
-
-//   value = {
-//     mass: (nftValue % CLASS_MULTIPLIER) as BigInt,
-//     tier: tier,
-//     color: checkColor(tier),
-//   };
-
-//   return value;
-// }
-
-/* ========== FROM UPDATE 2 ========== */
-
-// /**
-//  * @notice Update 2 - renders svg art using similar methods as smart contract with key attributes of tokenId
-//  * @param
-//  * @dev TODO: this is to be added in last for the subgraph
-//  */
-// function renderSVG(): void {
-//   // recall how: public fn tokenURI() gets a return from inherited fn tokenMetadata.
-//   // then fn tokenMetadata() gets a string that is an base64 encoded JSON. This JSON contains, call it base64JSON, has all attributes and even the image data within it. The code seems to show that this base64JSON is actually an ecoding of the initial JSON that has aforementioned metadata.
-//   // the image is generated in fn private _getSvg() within private fn _getJson()
-//   // TODO: write implementation code for renderSVG() by referencing _getSvg() where a string is returned. This string arguably could just be encoded twice and it should be in a format that is able to be rendered by a marketplace.
-// }
-
-/* ========== FROM UPDATE 3 ========== */
-
-// Instead of updating the tierTotals and BurnDetails within the EventHandlers themselves, I had made these separate helper functions. They caused issues though because I learnt:    // TODO: LESSON - if you save an entity but are not done the function call, and then call another function and try loading that newly saved entity, it will not update the same entity with the helper function stuff. Keep it all in the same block of scope.
-// tallyTier(tier, scenario);
-
-// /**
-//  * @notice increments or decrements respective tier tally within collection
-//  * @param tier
-//  * @param scenario
-//  */
-// function tallyTier(tier: string, scenario: string): void {
-//   const collection = Collection.load(MERGE_EXTADDR) as Collection;
-
-//   // update tier counts
-//   if (scenario == "Mint" && tier == "ONE") {
-//     collection.tier1Totals++;
-//     collection.save();
-//   } else if (scenario == "Mint" && tier == "TWO") {
-//     collection.tier2Totals++;
-//     collection.save();
-//   } else if (scenario == "Mint" && tier == "THREE") {
-//     collection.tier3Totals++;
-//     collection.save();
-//   } else if (scenario == "Mint" && tier == "FOUR") {
-//     collection.tier4Totals++;
-//     collection.save();
-//   } else if (tier == "ONE") {
-//     collection.tier1Totals--;
-//     collection.save();
-//   } else if (tier == "TWO") {
-//     collection.tier2Totals--;
-//     collection.save();
-//   } else if (tier == "THREE") {
-//     collection.tier3Totals--;
-//     collection.save();
-//   } else if (tier == "FOUR") {
-//     collection.tier4Totals--;
-//     collection.save();
-//   }
-// }
-
-// /**
-//  * @notice keeps tally of collection details as burns happen
-//  * @param scenario
-//  * @dev TODO: check this over, nft is not declared.
-//  */
-// function tallyBurnDetails(tokenId: string, scenario: string): void {
-//   const collection = Collection.load(MERGE_EXTADDR) as Collection;
-//   const nft = NFT.load(tokenId) as NFT;
-
-//   if (scenario == "NonNiftyBurn" || scenario == "NiftyBurn") {
-//     collection.mergeNFTsATM--;
-//     collection.totalBurns++;
-//     collection.totalMass = collection.totalMass.minus(nft.mass);
-//   }
-
-//   collection.save();
-// }

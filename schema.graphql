@@ -76,23 +76,23 @@ type Collection @entity {
   "TokenID of alpha mass"
   alphaTokenId: String!
   "Initial total minted individual mergeNFTs"
-  initialNFTTotal: Int
+  initialNFTTotal: Int!
   "Current amount of individual mergeNFTs existing"
-  mergeNFTsATM: Int
+  mergeNFTsATM: Int!
   "Number of Merges that have occurred"
-  totalMerges: Int
+  totalMerges: Int!
   "Number of archaic non-merge burns"
-  totalBurns: Int
+  totalBurns: Int!
   "Total mass in the collection"
   totalMass: BigInt!
   "Total tier-1 (least rare tier) WHITE NFTs"
-  tier1Totals: Int
+  tier1Totals: Int!
   "Total tier-2 (4th rare tier) YELLOW NFTs"
-  tier2Totals: Int
+  tier2Totals: Int!
   "Total tier-3 (3rd rare tier) BLUE NFTs"
-  tier3Totals: Int
+  tier3Totals: Int!
   "Total tier-4 (2nd rare tier) RED NFTs"
-  tier4Totals: Int
+  tier4Totals: Int!
   "Number of current unique addresses holding these NFTs"
-  totalUniqueOwnerAddresses: Int
+  totalUniqueOwnerAddresses: Int!
 }
