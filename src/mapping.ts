@@ -8,6 +8,7 @@ import {
   Approval,
   ApprovalForAll,
   ConsecutiveTransfer,
+  BurnCall,
 } from "../generated/Merge/Merge";
 import { User, NFT, Collection } from "../generated/schema";
 import {
@@ -159,6 +160,20 @@ export function handleWhitelistUpdate(call: WhitelistUpdateCall): void {
   user.save();
 }
 
+export function handleBurn(call: BurnCall): void {
+  // let collection = createOrLoadCollection(MERGE_EXTADDR);
+  const tokenId = call.inputs.tokenId.toHex();
+  const scenario = "StraightBurn";
+
+  updateNFT(tokenId, EMPTY_ADDRESS, BIGINT_ZERO);
+  updateCollection(tokenId, scenario);
+  //   collection.totalMass = collection.totalMass.minus(nft.mass));
+  // collection = tallyBurnDetails(collection);
+  // collection = tallyTier(tier, scenario, collection);
+
+  // collection.save();
+}
+
 /* ========== GENERAL FUNCTIONS ========== */
 
 /**
@@ -264,13 +279,13 @@ function updateCollection(tokenId: string, scenario: string): void {
     collection.alphaTokenId = tokenId;
   } else if (scenario == "normTransfer") {
     collection.totalUniqueOwnerAddresses--; // to counterbalance the ++ when making this new user entity.
-  } else collection == tallyBurnDetails(collection); // for all burn scenarios
-
-  if (scenario == "NonNiftyBurn") {
+  } else if (scenario == "NiftyBurn") {
+    collection = tallyBurnDetails(collection, tier); // for all burn scenarios
+  } else if (scenario == "NonNiftyBurn") {
+    collection = tallyBurnDetails(collection, tier); // for all burn scenarios
     collection.totalUniqueOwnerAddresses--;
-  }
-  // TODO: Fix this since I know that I need a callHandler for burn()
-  else if (scenario == "StraightBurn") {
+  } else if (scenario == "StraightBurn") {
+    collection = tallyBurnDetails(collection, tier); // for all burn scenarios
     collection.totalMass = collection.totalMass.minus(nft.mass);
   }
   collection = tallyTier(tier, scenario, collection);
@@ -320,14 +335,6 @@ function tallyTier(tier: string, scenario: string, collection: Collection): Coll
     collection.tier3Totals++;
   } else if (scenario == "Mint" && tier == "FOUR") {
     collection.tier4Totals++;
-  } else if (tier == "ONE") {
-    collection.tier1Totals--;
-  } else if (tier == "TWO") {
-    collection.tier2Totals--;
-  } else if (tier == "THREE") {
-    collection.tier3Totals--;
-  } else if (tier == "FOUR") {
-    collection.tier4Totals--;
   }
   return collection;
 }
@@ -338,7 +345,17 @@ function tallyTier(tier: string, scenario: string, collection: Collection): Coll
  * @dev TODO: this plus the "clean-up" I tried to do within updateCollection() has caused the totalBurns and totalMerges count to be off.
  *  @returns collection, an updated collection entity
  */
-function tallyBurnDetails(collection: Collection): Collection {
+function tallyBurnDetails(collection: Collection, tier: string): Collection {
+  if (tier == "ONE") {
+    collection.tier1Totals--;
+  } else if (tier == "TWO") {
+    collection.tier2Totals--;
+  } else if (tier == "THREE") {
+    collection.tier3Totals--;
+  } else if (tier == "FOUR") {
+    collection.tier4Totals--;
+  }
+
   collection.mergeNFTsATM--;
   collection.totalBurns++;
   return collection;
