@@ -70,7 +70,7 @@ type Collection @entity {
   "Name of NFT collection"
   name: String!
   "Total Mass in beginning"
-  originalMass: BigInt!
+  originalMass: Int!
   "ERC token standard used in this collection"
   tokenStandard: String!
   "TokenID of alpha mass"
@@ -78,13 +78,13 @@ type Collection @entity {
   "Initial total minted individual mergeNFTs"
   initialNFTTotal: Int!
   "Current amount of individual mergeNFTs existing"
-  mergeNFTsATM: Int!
+  currentNFTs: Int!
   "Number of Merges that have occurred"
   totalMerges: Int!
   "Number of archaic non-merge burns"
   totalBurns: Int!
   "Total mass in the collection"
-  totalMass: BigInt!
+  totalMass: Int!
   "Total tier-1 (least rare tier) WHITE NFTs"
   tier1Totals: Int!
   "Total tier-2 (4th rare tier) YELLOW NFTs"

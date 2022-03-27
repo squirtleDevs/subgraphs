@@ -161,17 +161,11 @@ export function handleWhitelistUpdate(call: WhitelistUpdateCall): void {
 }
 
 export function handleBurn(call: BurnCall): void {
-  // let collection = createOrLoadCollection(MERGE_EXTADDR);
   const tokenId = call.inputs.tokenId.toHex();
   const scenario = "StraightBurn";
 
   updateNFT(tokenId, EMPTY_ADDRESS, BIGINT_ZERO);
   updateCollection(tokenId, scenario);
-  //   collection.totalMass = collection.totalMass.minus(nft.mass));
-  // collection = tallyBurnDetails(collection);
-  // collection = tallyTier(tier, scenario, collection);
-
-  // collection.save();
 }
 
 /* ========== GENERAL FUNCTIONS ========== */
@@ -245,10 +239,10 @@ function createOrLoadCollection(extAddr: string): Collection {
   collection.tier3Totals = 0;
   collection.tier4Totals = 0;
   collection.totalBurns = 0;
-  collection.mergeNFTsATM = 0;
+  collection.currentNFTs = 0;
   collection.totalMerges = 0;
-  collection.totalMass = BIGINT_ZERO;
-  collection.originalMass = BIGINT_ZERO;
+  collection.totalMass = 0;
+  collection.originalMass = 0;
   collection.alphaTokenId = "";
   collection.save();
 
@@ -259,7 +253,6 @@ function createOrLoadCollection(extAddr: string): Collection {
  * @notice update collection entity representing entire nft project
  * @param tokenId
  * @param scenario whether Mint, NonNiftyBurn, NiftyBurn, StraightBurn, Merge, Alpha.
- * @dev TODO: this "clean-up" I tried to do within updateCollection() has caused the totalBurns and totalMerges count to be off. May also have to do with tallyBurnDetails()
  */
 function updateCollection(tokenId: string, scenario: string): void {
   let collection = createOrLoadCollection(MERGE_EXTADDR);
@@ -270,9 +263,9 @@ function updateCollection(tokenId: string, scenario: string): void {
 
   if (scenario == "Mint") {
     collection.initialNFTTotal++;
-    collection.mergeNFTsATM++;
-    collection.originalMass = collection.originalMass.plus(nft.mass);
-    collection.totalMass = collection.totalMass.plus(nft.mass);
+    collection.currentNFTs++;
+    collection.originalMass = collection.originalMass + nft.mass.toI32();
+    collection.totalMass = collection.totalMass + nft.mass.toI32();
   } else if (scenario == "Merge") {
     collection.totalMerges++;
   } else if (scenario == "Alpha") {
@@ -286,7 +279,7 @@ function updateCollection(tokenId: string, scenario: string): void {
     collection.totalUniqueOwnerAddresses--;
   } else if (scenario == "StraightBurn") {
     collection = tallyBurnDetails(collection, tier); // for all burn scenarios
-    collection.totalMass = collection.totalMass.minus(nft.mass);
+    collection.totalMass = collection.totalMass - nft.mass.toI32();
   }
   collection = tallyTier(tier, scenario, collection);
   collection.save();
@@ -342,8 +335,7 @@ function tallyTier(tier: string, scenario: string, collection: Collection): Coll
 /**
  * @notice changes burn-related counts as a helper function
  * @param collection with partially updated fields
- * @dev TODO: this plus the "clean-up" I tried to do within updateCollection() has caused the totalBurns and totalMerges count to be off.
- *  @returns collection, an updated collection entity
+ * @returns collection, an updated collection entity
  */
 function tallyBurnDetails(collection: Collection, tier: string): Collection {
   if (tier == "ONE") {
@@ -356,7 +348,7 @@ function tallyBurnDetails(collection: Collection, tier: string): Collection {
     collection.tier4Totals--;
   }
 
-  collection.mergeNFTsATM--;
+  collection.currentNFTs--;
   collection.totalBurns++;
   return collection;
 }
