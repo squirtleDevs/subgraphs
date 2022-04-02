@@ -163,7 +163,8 @@ export function handleWhitelistUpdate(call: WhitelistUpdateCall): void {
 export function handleBurn(call: BurnCall): void {
   const tokenId = call.inputs.tokenId.toHex();
   const scenario = "StraightBurn";
-
+  const collection = createOrLoadCollection(MERGE_EXTADDR);
+  collection.burnCallTotal++;
   updateNFT(tokenId, EMPTY_ADDRESS, BIGINT_ZERO);
   updateCollection(tokenId, scenario);
 }
@@ -243,6 +244,7 @@ function createOrLoadCollection(extAddr: string): Collection {
   collection.totalMerges = 0;
   collection.totalMass = 0;
   collection.originalMass = 0;
+  collection.burnCallTotal = 0;
   collection.alphaTokenId = "";
   collection.save();
 

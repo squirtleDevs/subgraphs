@@ -95,4 +95,6 @@ type Collection @entity {
   tier4Totals: Int!
   "Number of current unique addresses holding these NFTs"
   totalUniqueOwnerAddresses: Int!
+  "Number of times burn() public function called"
+  burnCallTotal: Int
 }
