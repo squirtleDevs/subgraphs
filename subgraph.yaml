@@ -26,6 +26,8 @@ dataSources:
       callHandlers:
         - function: whitelistUpdate(address,bool)
           handler: handleWhitelistUpdate
+        - function: burn(uint256)
+          handler: handleBurn
       eventHandlers:
         - event: AlphaMassUpdate(indexed uint256,uint256)
           handler: handleAlphaMassUpdate
