@@ -1,4 +1,4 @@
-import { BigInt } from "@graphprotocol/graph-ts";
+import { BigInt, log } from "@graphprotocol/graph-ts";
 import {
   Merge,
   Transfer,
@@ -67,9 +67,11 @@ export function handleTransfer(event: Transfer): void {
       scenario = "NiftyBurn";
     } else if (to == EMPTY_ADDRESS) {
       scenario = "NonNiftyBurn";
-    } else if (from == ADDR_DEAD) {
-      scenario = "StraightBurn";
-    } else if (!(from == NG_OMNIBUS && to != EMPTY_ADDRESS && to != ADDR_DEAD)) {
+    }
+    // else if (from == ADDR_DEAD) {
+    //   scenario = "StraightBurn";
+    // }
+    else if (!(from == NG_OMNIBUS && to != EMPTY_ADDRESS && to != ADDR_DEAD)) {
       scenario = "normTransfer"; //transfer to someone who doesn't own a mergeNFT yet
     }
   }
@@ -163,8 +165,8 @@ export function handleWhitelistUpdate(call: WhitelistUpdateCall): void {
 export function handleBurn(call: BurnCall): void {
   const tokenId = call.inputs.tokenId.toHex();
   const scenario = "StraightBurn";
-  const collection = createOrLoadCollection(MERGE_EXTADDR);
-  collection.burnCallTotal++;
+  // const collection = createOrLoadCollection(MERGE_EXTADDR);
+  // collection.burnCallTotal++;
   updateNFT(tokenId, EMPTY_ADDRESS, BIGINT_ZERO);
   updateCollection(tokenId, scenario);
 }
@@ -280,8 +282,17 @@ function updateCollection(tokenId: string, scenario: string): void {
     collection = tallyBurnDetails(collection, tier); // for all burn scenarios
     collection.totalUniqueOwnerAddresses--;
   } else if (scenario == "StraightBurn") {
-    collection = tallyBurnDetails(collection, tier); // for all burn scenarios
+    log.info("massPreBurn: {}", [collection.totalMass.toString()]);
+
     collection.totalMass = collection.totalMass - nft.mass.toI32();
+    log.info("massPostBurn: {}", [collection.totalMass.toString()]);
+
+    log.info("burnCallTotalAfter: {}", [collection.burnCallTotal.toString()]);
+
+    collection.burnCallTotal++;
+    log.info("burnCallTotalAfter: {}", [collection.burnCallTotal.toString()]);
+
+    collection = tallyBurnDetails(collection, tier); // for all burn scenarios
   }
   collection = tallyTier(tier, scenario, collection);
   collection.save();
